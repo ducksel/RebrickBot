@@ -47,7 +47,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			# Формируем сообщение на английском, аккуратно выводя год выпуска
 			message = (
 				f"LEGO Set Details:\n"
-				f"-----------------\n"
 				f"Set Number: {set_num}\n"
 				f"Name: {name}\n"
 				f"Year Released: {year}\n"
