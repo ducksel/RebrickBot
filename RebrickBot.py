@@ -117,27 +117,21 @@ def get_categories():
 		url = data.get("next")
 	return categories
 
-def group_parts_with_colors_by_dynamic_category(parts):
+def group_parts_by_dynamic_category(parts):
 	"""
-	Группирует детали по категориям, полученным динамически, и собирает уникальные цвета каждой категории.
-	Возвращает словарь, где ключ – название категории, а значение – словарь вида:
-	  {"total": суммарное количество, "colors": {имя цвета: количество}}
+	Группирует детали набора по категориям, полученным динамически через get_categories.
+	Возвращает словарь: ключ – название категории, значение – суммарное количество деталей.
 	"""
-	categories = get_categories()
-	result = {}
+	categories = get_categories()  # получаем словарь {id: name}
+	category_summary = {}
 	for part in parts:
 		part_obj = part.get("part", {})
 		cat_id = part_obj.get("part_cat_id")
 		quantity = part.get("quantity", 0)
-		color = part.get("color", {})
-		color_name = color.get("name", "Unknown")
 		if cat_id is not None:
 			cat_name = categories.get(cat_id, f"Category {cat_id}")
-			if cat_name not in result:
-				result[cat_name] = {"total": 0, "colors": {}}
-			result[cat_name]["total"] += quantity
-			result[cat_name]["colors"][color_name] = result[cat_name]["colors"].get(color_name, 0) + quantity
-	return result
+			category_summary[cat_name] = category_summary.get(cat_name, 0) + quantity
+	return category_summary
 
 def get_set_details(set_id):
 	"""
@@ -168,10 +162,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		if not parts:
 			await query.message.reply_text("No parts data found or API error.")
 			return
-		
-		# Получаем информацию о наборе для заголовка
+
+		# Заголовок с кодом и названием набора
 		set_num, set_name = get_set_details(set_id)
-		header = f"<b>{set_num} {set_name} has:</b>"
+		header = f"<b>{set_num} {set_name}</b>"
 		
 		color_summary = {}
 		for part in parts:
@@ -181,7 +175,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			color_summary[color_name] = color_summary.get(color_name, 0) + quantity
 		
 		sorted_colors = sorted(color_summary.items(), key=lambda item: item[1], reverse=True)
-		message_lines = [header, "<b>Parts Summary by Color:</b>"]
+		message_lines = [header, "Parts Summary by Color:"]
 		for color_name, total in sorted_colors:
 			message_lines.append(f"<b>{color_name}</b>: {total}")
 		message = "\n".join(message_lines)
@@ -200,16 +194,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			return
 		
 		set_num, set_name = get_set_details(set_id)
-		header = f"<b>{set_num} {set_name} has:</b>"
+		header = f"<b>{set_num} {set_name}</b>"
 		
-		category_data = group_parts_with_colors_by_dynamic_category(parts)
-		sorted_categories = sorted(category_data.items(), key=lambda item: item[1]["total"], reverse=True)
-		message_lines = [header, "<b>Parts Summary by Type:</b>"]
-		for cat_name, data in sorted_categories:
-			total = data["total"]
-			colors = sorted(data["colors"].keys())
-			colors_list = ", ".join(colors)
-			message_lines.append(f"<b>{cat_name}</b>: {total} ({colors_list})")
+		category_summary = group_parts_by_dynamic_category(parts)
+		sorted_categories = sorted(category_summary.items(), key=lambda item: item[1], reverse=True)
+		message_lines = [header, "Parts Summary by Type:"]
+		for cat_name, total in sorted_categories:
+			message_lines.append(f"<b>{cat_name}</b>: {total}")
 		message = "\n".join(message_lines)
 		await query.message.reply_text(message, parse_mode="HTML")
 	else:
