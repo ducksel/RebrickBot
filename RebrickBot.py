@@ -1,11 +1,12 @@
 import os
 import re
 import requests
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
 	ApplicationBuilder,
 	CommandHandler,
 	MessageHandler,
+	CallbackQueryHandler,
 	ContextTypes,
 	filters
 )
@@ -17,15 +18,15 @@ REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await update.message.reply_text("Hello! Please send me a LEGO set code (4 or 5 digits).")
 
-# Обработчик текстовых сообщений
+# Обработчик текстовых сообщений с запросом к Rebrickable
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	text = update.message.text.strip()
 	print(f"Received text: {text}")
 
-	# Проверка, что введён код состоит из 4 или 5 цифр
+	# Проверка: LEGO код состоит из 4 или 5 цифр
 	if re.fullmatch(r"\d{4,5}", text):
 		lego_code = text
-		# Формируем ID набора (обычно Rebrickable использует "-1" в конце)
+		# Формируем ID набора (обычно Rebrickable использует "-1" на конце)
 		set_id = f"{lego_code}-1"
 		
 		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
@@ -43,7 +44,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			set_img_url = data.get("set_img_url")
 			set_url = data.get("set_url", "n/a")
 			
-			# Формируем сообщение на английском
+			# Формируем сообщение на английском, аккуратно выводя год выпуска
 			message = (
 				f"LEGO Set Details:\n"
 				f"-----------------\n"
@@ -54,11 +55,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"More Info: {set_url}"
 			)
 			
-			# Если есть URL изображения, отправляем фотографию с подписью
+			# Создаем inline-клавиатуру с двумя кнопками
+			keyboard = InlineKeyboardMarkup([
+				[InlineKeyboardButton("View on Rebrickable", url=set_url),
+				 InlineKeyboardButton("Parts Details", callback_data="parts_details")]
+			])
+			
+			# Если есть изображение набора, отправляем фото с подписью и клавиатурой
 			if set_img_url:
-				await update.message.reply_photo(photo=set_img_url, caption=message)
+				await update.message.reply_photo(photo=set_img_url, caption=message, reply_markup=keyboard)
 			else:
-				await update.message.reply_text(message)
+				await update.message.reply_text(message, reply_markup=keyboard)
 		elif response.status_code == 404:
 			await update.message.reply_text(f"❌ LEGO set {set_id} not found.")
 		else:
@@ -66,7 +73,21 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	else:
 		await update.message.reply_text("❌ Invalid LEGO code. Please enter exactly 4 or 5 digits.")
 
+# Обработчик callback для кнопки "Parts Details"
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	query = update.callback_query
+	await query.answer()  # уведомляем Telegram, что callback обработан
+	if query.data == "parts_details":
+		await query.edit_message_reply_markup(reply_markup=None)  # можно убрать клавиатуру, если нужно
+		await query.message.reply_text("Parts details coming soon!")  # плейсхолдерное сообщение
+
+# Инициализация приложения
 app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
+
+# Регистрация обработчиков
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+app.add_handler(CallbackQueryHandler(handle_callback))
+
+# Запуск бота (long polling)
 app.run_polling()
