@@ -5,6 +5,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler
 async def start(update: Update, context):
 	await update.message.reply_text("Привет, мир! Я бот готов.")  # бот отвечает сообщением
 
-app = ApplicationBuilder().token("BOT_TOKEN").build()       # создание приложения бота с токеном
+app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()       # создание приложения бота с токеном
 app.add_handler(CommandHandler("start", start))             # привязываем команду /start к функции
 app.run_polling()                                           # запускаем бота (долгий опрос сервера)
