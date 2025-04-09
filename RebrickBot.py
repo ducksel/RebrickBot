@@ -1,6 +1,6 @@
 import os
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # Функция-обработчик для команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
