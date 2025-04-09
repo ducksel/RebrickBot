@@ -51,7 +51,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			keyboard = InlineKeyboardMarkup([
 				[
 					InlineKeyboardButton("Parts by Color", callback_data=f"parts_by_color:{set_id}"),
-					InlineKeyboardButton("Parts by Type", callback_data="parts_by_type")
+					InlineKeyboardButton("Parts by Type", callback_data=f"parts_by_type:{set_id}")
 				],
 				[InlineKeyboardButton("View on Rebrickable", url=set_url)]
 			])
