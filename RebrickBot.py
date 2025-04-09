@@ -40,13 +40,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			
 			# Формируем сообщение с HTML-разметкой
 			message = (
-				f"<b>LEGO Set Details:</b>\n"
-				f"-----------------\n"
+				f"<b>Lego set details:</b>\n"
 				f"<b>Set Number:</b> {set_num}\n"
 				f"<b>Name:</b> {name}\n"
 				f"<b>Year Released:</b> {year}\n"
-				f"<b>Pieces:</b> {num_parts}\n\n"
-				f"<b>More Info:</b> {set_url}"
+				f"<b>Pieces:</b> {num_parts}"
 			)
 			
 			# Inline-клавиатура: две кнопки для сводных данных по деталям и кнопка-ссылка на Rebrickable
