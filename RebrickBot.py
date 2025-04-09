@@ -86,48 +86,42 @@ def get_all_parts(set_id):
 		return parts
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-	query = update.callback_query
-	await query.answer() # уведомляем Telegram об обработке callback
-
-	# Проверяем, что callback_data начинается с "parts_by_color:" и извлекаем set_id
-	if query.data.startswith("parts_by_color:"):
-		try:
-		_, set_id = query.data.split(":", 1)
-	except ValueError:
-		await query.message.reply_text("Error: Set information is missing.")
-		return
-	
-	# Получаем все детали набора
-	parts = get_all_parts(set_id)
-	if not parts:
-		await query.message.reply_text("No parts data found or API error.")
-		return
-	
-	# Агрегируем количество деталей по цвету
-	color_summary = {}
-	for part in parts:
-		color = part.get("color", {})
-		color_name = color.get("name", "Unknown")
-		quantity = part.get("quantity", 0)
-		color_summary[color_name] = color_summary.get(color_name, 0) + quantity
-	
-	# Формируем сообщение с использованием HTML-разметки
-	message_lines = ["<b>Parts Summary by Color:</b>"]
-	for color_name, total in color_summary.items():
-		message_lines.append(f"<b>{color_name}</b>: {total}")
-	message = "\n".join(message_lines)
-	
-	# Отправляем сообщение с результатом
-	await query.message.reply_text(message, parse_mode="HTML")
-		else:
-			await query.message.reply_text(f"⚠️ API Error: {response.status_code}")
-
-
-	elif query.data == "parts_by_type":
-		await query.message.reply_text("Parts summary by type coming soon!")
+		query = update.callback_query
+		await query.answer()  # уведомляем Telegram об обработке callback
 		
+		if query.data.startswith("parts_by_color:"):
+			try:
+				_, set_id = query.data.split(":", 1)
+			except ValueError:
+				await query.message.reply_text("Error: Set information is missing.")
+				return
 		
+			# Получаем все детали набора
+			parts = get_all_parts(set_id)
+			if not parts:
+				await query.message.reply_text("No parts data found or API error.")
+				return
 		
+			# Агрегируем количество деталей по цвету
+			color_summary = {}
+			for part in parts:
+				color = part.get("color", {})
+				color_name = color.get("name", "Unknown")
+				quantity = part.get("quantity", 0)
+				color_summary[color_name] = color_summary.get(color_name, 0) + quantity
+		
+			# Формируем сообщение с использованием HTML-разметки
+			message_lines = ["<b>Parts Summary by Color:</b>"]
+			for color_name, total in color_summary.items():
+				message_lines.append(f"<b>{color_name}</b>: {total}")
+			message = "\n".join(message_lines)
+		
+			# Отправляем сообщение с результатом
+			await query.message.reply_text(message, parse_mode="HTML")
+		
+		elif query.data == "parts_by_type":
+			await query.message.reply_text("Parts summary by type coming soon!")
+				
 
 app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
 app.add_handler(CommandHandler("start", start))
