@@ -110,9 +110,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				quantity = part.get("quantity", 0)
 				color_summary[color_name] = color_summary.get(color_name, 0) + quantity
 		
+			# Сортируем детали по убыванию количества
+			sorted_colors = sorted(color_summary.items(), key=lambda item: item[1], reverse=True)
+		
 			# Формируем сообщение с использованием HTML-разметки
 			message_lines = ["<b>Parts Summary by Color:</b>"]
-			for color_name, total in color_summary.items():
+			for color_name, total in sorted_colors:
 				message_lines.append(f"<b>{color_name}</b>: {total}")
 			message = "\n".join(message_lines)
 		
