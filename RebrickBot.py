@@ -50,7 +50,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			# Inline-клавиатура: две кнопки для сводных данных по деталям и кнопка-ссылка на Rebrickable
 			keyboard = InlineKeyboardMarkup([
 				[
-					InlineKeyboardButton("Parts by Color", callback_data="parts_by_color"),
+					InlineKeyboardButton("Parts by Color", callback_data=f"parts_by_color:{set_id}"),
 					InlineKeyboardButton("Parts by Type", callback_data="parts_by_type")
 				],
 				[InlineKeyboardButton("View on Rebrickable", url=set_url)]
@@ -70,12 +70,51 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
-	if query.data == "parts_by_color":
-		await query.edit_message_reply_markup(reply_markup=None)
-		await query.message.reply_text("Parts summary by color coming soon!")
+
+	# Проверяем, что callback_data начинается с "parts_by_color:" и извлекаем set_id
+	if query.data.startswith("parts_by_color:"):
+		try:
+			_, set_id = query.data.split(":", 1)
+		except ValueError:
+			await query.message.reply_text("Error: Set information is missing.")
+			return
+	
+		# Формируем URL для получения деталей набора по цвету
+		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/parts/"
+		headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
+		
+		# Делаем запрос к API
+		response = requests.get(url, headers=headers)
+		if response.status_code == 200:
+			parts_data = response.json()
+			color_summary = {}
+	
+			# Пройдемся по каждой детали в полученных результатах
+			for part in parts_data.get("results", []):
+				# Извлекаем имя цвета и количество деталей
+				color = part.get("color", {})
+				color_name = color.get("name", "Unknown")
+				quantity = part.get("quantity", 0)
+				color_summary[color_name] = color_summary.get(color_name, 0) + quantity
+	
+			# Формируем сообщение с HTML-разметкой
+			message_lines = ["<b>Parts Summary by Color:</b>"]
+			for color_name, total in color_summary.items():
+				message_lines.append(f"<b>{color_name}</b>: {total}")
+			message = "\n".join(message_lines)
+	
+			# Убираем клавиатуру и отправляем сообщение с результатами
+			await query.edit_message_reply_markup(reply_markup=None)
+			await query.message.reply_text(message, parse_mode="HTML")
+		else:
+			await query.message.reply_text(f"⚠️ API Error: {response.status_code}")
+
+
 	elif query.data == "parts_by_type":
-		await query.edit_message_reply_markup(reply_markup=None)
 		await query.message.reply_text("Parts summary by type coming soon!")
+		
+		
+		
 
 app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
 app.add_handler(CommandHandler("start", start))
