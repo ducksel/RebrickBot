@@ -84,6 +84,88 @@ def get_all_parts(set_id):
 			url = data.get("next")  # если есть следующая страница, получаем ее URL; иначе, None
 		
 		return parts
+				
+def group_parts_by_official_category(parts):
+		# Словарь соответствия: ключ — part_cat_id, значение — название категории LEGO.
+		official_categories = {
+			1:  "Bars, Ladders and Fences",
+			2:  "Baseplates",
+			3:  "Belville, Scala and Fabuland",
+			4:  "Bricks",
+			5:  "Bricks Curved",
+			6:  "Bricks Round and Cones",
+			7:  "Bricks Sloped",
+			8:  "Bricks Special",
+			9:  "Bricks Wedged",
+			10: "Clikits",
+			11: "Containers",
+			12: "Duplo, Quatro and Primo",
+			13: "Electronics",
+			14: "Energy Effects",
+			15: "Flags, Signs, Plastics and Cloth",
+			16: "Hinges, Arms and Turntables",
+			17: "HO Scale",
+			18: "Large Buildable Figures",
+			19: "Magnets and Holders",
+			20: "Mechanical",
+			21: "Minidoll Heads",
+			22: "Minidoll Lower Body",
+			23: "Minidoll Upper Body",
+			24: "Minifig Accessories",
+			25: "Minifig Heads",
+			26: "Minifig Headwear",
+			27: "Minifig Lower Body",
+			28: "Minifigs",
+			29: "Minifig Upper Body",
+			30: "Modulex",
+			31: "Non-Buildable Figures (Duplo, Fabuland, etc)",
+			32: "Non-LEGO",
+			33: "Panels",
+			34: "Plants and Animals",
+			35: "Plates",
+			36: "Plates Angled",
+			37: "Plates Round Curved and Dishes",
+			38: "Plates Special",
+			39: "Pneumatics",
+			40: "Projectiles / Launchers",
+			41: "Rock",
+			42: "Stickers",
+			43: "String, Bands and Reels",
+			44: "Supports, Girders and Cranes",
+			45: "Technic Axles",
+			46: "Technic Beams",
+			47: "Technic Beams Special",
+			48: "Technic Bricks",
+			49: "Technic Bushes",
+			50: "Technic Connectors",
+			51: "Technic Gears",
+			52: "Technic Panels",
+			53: "Technic Pins",
+			54: "Technic Special",
+			55: "Technic Steering, Suspension and Engine",
+			56: "Tiles",
+			57: "Tiles Round and Curved",
+			58: "Tiles Special",
+			59: "Tools",
+			60: "Transportation - Land",
+			61: "Transportation - Sea and Air",
+			62: "Tubes and Hoses",
+			63: "Wheels and Tyres",
+			64: "Windows and Doors",
+			65: "Windscreens and Fuselage",
+			66: "Znap"
+		}
+		
+		category_summary = {}
+		for part in parts:
+			part_obj = part.get("part", {})
+			cat_id = part_obj.get("part_cat_id")
+			quantity = part.get("quantity", 0)
+			if cat_id is not None:
+				# Если для найденного идентификатора нет записи — используем шаблон "Category {cat_id}"
+				cat_name = official_categories.get(cat_id, f"Category {cat_id}")
+				category_summary[cat_name] = category_summary.get(cat_name, 0) + quantity
+		return category_summary
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		query = update.callback_query
@@ -122,8 +204,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			# Отправляем сообщение с результатом
 			await query.message.reply_text(message, parse_mode="HTML")
 		
-		elif query.data == "parts_by_type":
-			await query.message.reply_text("Parts summary by type coming soon!")
+		elif query.data.startswith("parts_by_type:"):
+			try:
+				_, set_id = query.data.split(":", 1)
+			except ValueError:
+				await query.message.reply_text("Error: Set information is missing.")
+				return
+			
+			# Получаем все детали набора (функция get_all_parts должна быть определена отдельно)
+			parts = get_all_parts(set_id)
+			if not parts:
+				await query.message.reply_text("No parts data found or API error.")
+				return
+			
+			# Группируем детали по официальным категориям LEGO
+			category_summary = group_parts_by_official_category(parts)
+			
+			# Сортируем категории по количеству деталей (по убыванию)
+			sorted_categories = sorted(category_summary.items(), key=lambda item: item[1], reverse=True)
+			
+			# Формируем сообщение с HTML-разметкой
+			message_lines = ["<b>Parts Summary by Type:</b>"]
+			for cat_name, total in sorted_categories:
+				message_lines.append(f"<b>{cat_name}</b>: {total}")
+			message = "\n".join(message_lines)
+			
+			await query.message.reply_text(message, parse_mode="HTML")
 				
 
 app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
