@@ -11,7 +11,6 @@ from telegram.ext import (
 	filters
 )
 
-# Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,12 +23,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	text = update.message.text.strip()
 	print(f"Received text: {text}")
 
-	# Проверка: код должен состоять из 4 или 5 цифр
 	if re.fullmatch(r"\d{4,5}", text):
 		lego_code = text
 		set_id = f"{lego_code}-1"
 		
-		# Запрос информации по набору
 		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
 		headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
 		print(f"Making request for set {set_id}")
@@ -44,7 +41,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			set_img_url = data.get("set_img_url")
 			set_url = data.get("set_url", "n/a")
 			
-			# Формируем сообщение с HTML-разметкой
 			message = (
 				f"<b>Lego set details:</b>\n"
 				f"<b>Set Number:</b> {set_num}\n"
@@ -53,7 +49,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Pieces:</b> {num_parts}"
 			)
 			
-			# Inline-клавиатура: кнопки для Parts by Color, Parts by Type и ссылка "View on Rebrickable"
 			keyboard = InlineKeyboardMarkup([
 				[
 					InlineKeyboardButton("Parts by Color", callback_data=f"parts_by_color:{set_id}"),
@@ -96,7 +91,7 @@ def get_all_parts(set_id):
 			break
 		data = response.json()
 		parts.extend(data.get("results", []))
-		url = data.get("next")  # переходим к следующей странице, если есть
+		url = data.get("next")
 	return parts
 
 def get_categories():
@@ -122,48 +117,71 @@ def get_categories():
 		url = data.get("next")
 	return categories
 
-def group_parts_by_dynamic_category(parts):
+def group_parts_with_colors_by_dynamic_category(parts):
 	"""
-	Группирует детали набора по категориям, полученным динамически через get_categories.
-	Возвращает словарь: ключ – название категории, значение – суммарное количество деталей.
+	Группирует детали по категориям, полученным динамически, и собирает уникальные цвета каждой категории.
+	Возвращает словарь, где ключ – название категории, а значение – словарь вида:
+	  {"total": суммарное количество, "colors": {имя цвета: количество}}
 	"""
-	categories = get_categories()  # получаем словарь {id: name}
-	category_summary = {}
+	categories = get_categories()
+	result = {}
 	for part in parts:
 		part_obj = part.get("part", {})
 		cat_id = part_obj.get("part_cat_id")
 		quantity = part.get("quantity", 0)
+		color = part.get("color", {})
+		color_name = color.get("name", "Unknown")
 		if cat_id is not None:
 			cat_name = categories.get(cat_id, f"Category {cat_id}")
-			category_summary[cat_name] = category_summary.get(cat_name, 0) + quantity
-	return category_summary
+			if cat_name not in result:
+				result[cat_name] = {"total": 0, "colors": {}}
+			result[cat_name]["total"] += quantity
+			result[cat_name]["colors"][color_name] = result[cat_name]["colors"].get(color_name, 0) + quantity
+	return result
+
+def get_set_details(set_id):
+	"""
+	Получает базовую информацию о наборе (set_num и name) из Rebrickable.
+	"""
+	url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
+	headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
+	response = requests.get(url, headers=headers)
+	if response.status_code == 200:
+		data = response.json()
+		set_num = data.get("set_num", "n/a")
+		name = data.get("name", "n/a")
+		return set_num, name
+	return "n/a", "n/a"
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
-	await query.answer()  # уведомляем Telegram об обработке callback
-
+	await query.answer()
+	
 	if query.data.startswith("parts_by_color:"):
 		try:
 			_, set_id = query.data.split(":", 1)
 		except ValueError:
 			await query.message.reply_text("Error: Set information is missing.")
 			return
-
+		
 		parts = get_all_parts(set_id)
 		if not parts:
 			await query.message.reply_text("No parts data found or API error.")
 			return
-
-		# Группируем детали по цвету (по названию цвета)
+		
+		# Получаем информацию о наборе для заголовка
+		set_num, set_name = get_set_details(set_id)
+		header = f"<b>{set_num} {set_name} has:</b>"
+		
 		color_summary = {}
 		for part in parts:
 			color = part.get("color", {})
 			color_name = color.get("name", "Unknown")
 			quantity = part.get("quantity", 0)
 			color_summary[color_name] = color_summary.get(color_name, 0) + quantity
-
+		
 		sorted_colors = sorted(color_summary.items(), key=lambda item: item[1], reverse=True)
-		message_lines = ["<b>Parts Summary by Color:</b>"]
+		message_lines = [header, "<b>Parts Summary by Color:</b>"]
 		for color_name, total in sorted_colors:
 			message_lines.append(f"<b>{color_name}</b>: {total}")
 		message = "\n".join(message_lines)
@@ -181,11 +199,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			await query.message.reply_text("No parts data found or API error.")
 			return
 		
-		category_summary = group_parts_by_dynamic_category(parts)
-		sorted_categories = sorted(category_summary.items(), key=lambda item: item[1], reverse=True)
-		message_lines = ["<b>Parts Summary by Type:</b>"]
-		for cat_name, total in sorted_categories:
-			message_lines.append(f"<b>{cat_name}</b>: {total}")
+		set_num, set_name = get_set_details(set_id)
+		header = f"<b>{set_num} {set_name} has:</b>"
+		
+		category_data = group_parts_with_colors_by_dynamic_category(parts)
+		sorted_categories = sorted(category_data.items(), key=lambda item: item[1]["total"], reverse=True)
+		message_lines = [header, "<b>Parts Summary by Type:</b>"]
+		for cat_name, data in sorted_categories:
+			total = data["total"]
+			colors = sorted(data["colors"].keys())
+			colors_list = ", ".join(colors)
+			message_lines.append(f"<b>{cat_name}</b>: {total} ({colors_list})")
 		message = "\n".join(message_lines)
 		await query.message.reply_text(message, parse_mode="HTML")
 	else:
