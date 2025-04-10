@@ -13,6 +13,23 @@ from telegram.ext import (
 
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
 
+def get_lego_us_url(set_num):
+	"""
+	Формирует URL для официального сайта LEGO US по формуле.
+	Предполагается, что set_num имеет вид "42176-1"; будем брать часть до тире.
+	"""
+	base = set_num.split("-")[0]  # Берём только числовую часть
+	url = f"https://www.lego.com/en-us/product/{base}"
+	# Пытаемся проверить доступность страницы (таймаут 5 сек)
+	try:
+		resp = requests.get(url, timeout=5)
+		if resp.status_code == 200:
+			return url
+		else:
+			return url  # Если страница не отвечает 200, всё равно возвращаем URL
+	except Exception:
+		return url
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await update.message.reply_text(
 		"Hello! Please send me a LEGO set code (4 or 5 digits).",
@@ -49,12 +66,18 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Pieces:</b> {num_parts}"
 			)
 			
+			# Формируем URL для официального LEGO US, проверив доступность страницы
+			lego_us_url = get_lego_us_url(set_num)
+			
 			keyboard = InlineKeyboardMarkup([
 				[
 					InlineKeyboardButton("Parts by Color", callback_data=f"parts_by_color:{set_id}"),
 					InlineKeyboardButton("Parts by Type", callback_data=f"parts_by_type:{set_id}")
 				],
-				[InlineKeyboardButton("View on Rebrickable", url=set_url)]
+				[
+					InlineKeyboardButton("View on Rebrickable", url=set_url),
+					InlineKeyboardButton("View on LEGO US", url=lego_us_url)
+				]
 			])
 			
 			if set_img_url:
@@ -163,7 +186,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			await query.message.reply_text("No parts data found or API error.")
 			return
 
-		# Заголовок с кодом и названием набора
 		set_num, set_name = get_set_details(set_id)
 		header = f"<b>{set_num} {set_name}</b>"
 		
