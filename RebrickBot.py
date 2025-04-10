@@ -81,7 +81,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			set_img_url = data.get("set_img_url")
 			set_url = data.get("set_url", "n/a")
 
-			# Формируем основное сообщение
+			# Формируем основной текст
 			message = (
 				f"<b>Lego set details:</b>\n"
 				f"<b>Set Number:</b> {set_num}\n"
@@ -90,23 +90,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Pieces:</b> {num_parts}"
 			)
 
+			# Отправляем изображение отдельно, если есть
+			if set_img_url:
+				await update.message.reply_photo(photo=set_img_url)
+
+			# Отправляем текст с кнопками
 			lego_us_url = get_lego_us_url(set_num)
 			keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)
 
-			# Отправляем сообщение с картинкой или без
-			if set_img_url:
-				await update.message.reply_photo(
-					photo=set_img_url,
-					caption=message,
-					parse_mode="HTML",
-					reply_markup=keyboard
-				)
-			else:
-				await update.message.reply_text(
-					message,
-					parse_mode="HTML",
-					reply_markup=keyboard
-				)
+			await update.message.reply_text(
+				text=message,
+				parse_mode="HTML",
+				reply_markup=keyboard
+			)
+
 		elif response.status_code == 404:
 			await update.message.reply_text(f"❌ LEGO set {set_id} not found.")
 		else:
@@ -192,7 +189,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
 
-	# Разбираем callback_data: action:set_id
 	try:
 		action, set_id = query.data.split(":", 1)
 	except ValueError:
@@ -217,7 +213,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		)
 		return
 
-	# Обрабатываем разные варианты действий
 	if action == "parts_by_color":
 		# Группировка по цветам
 		color_summary = {}
