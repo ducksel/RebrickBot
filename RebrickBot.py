@@ -247,7 +247,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 	elif action == "pricing":
 		# Информация о ценах из BrickEconomy API
-		additional_info = get_pricing_info(set_num)
+		# Передаём set_id (например, '42176-1') — функция сама обрежет хвост
+		additional_info = get_pricing_info(set_id)
 
 	else:
 		additional_info = "\n⚠️ Unknown action."
@@ -268,3 +269,4 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 app.add_handler(CallbackQueryHandler(handle_callback))
 app.run_polling()
+
