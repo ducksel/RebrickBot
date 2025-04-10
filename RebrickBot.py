@@ -18,7 +18,7 @@ def get_lego_us_url(set_num):
 	Формирует URL для официального сайта LEGO US по формуле.
 	Принимает set_num (например, "42176-1") и возвращает URL вида:
 	  https://www.lego.com/en-us/product/42176
-	Проверка доступности не выполняется, чтобы избежать задержек.
+	Проверка доступности не выполняется.
 	"""
 	base = set_num.split("-")[0]  # Берём только числовую часть
 	url = f"https://www.lego.com/en-us/product/{base}"
@@ -78,18 +78,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			])
 			
 			if set_img_url:
-				await update.message.reply_photo(
+				sent = await update.message.reply_photo(
 					photo=set_img_url,
 					caption=base_message,
 					parse_mode="HTML",
 					reply_markup=keyboard
 				)
 			else:
-				await update.message.reply_text(
+				sent = await update.message.reply_text(
 					base_message,
 					parse_mode="HTML",
 					reply_markup=keyboard
 				)
+			# Сохраняем базовый текст по message_id
+			context.user_data[sent.message_id] = base_message
 		elif response.status_code == 404:
 			await update.message.reply_text(f"❌ LEGO set {set_id} not found.")
 		else:
@@ -118,7 +120,6 @@ def get_categories():
 	"""
 	Получает все категории деталей из Rebrickable и возвращает словарь,
 	где ключ – идентификатор категории, а значение – название категории.
-	Обходит все страницы результата.
 	"""
 	categories = {}
 	url = "https://rebrickable.com/api/v3/lego/part_categories/"
@@ -171,12 +172,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
 	
-	# Получаем базовый текст из исходного сообщения по маркеру.
-	if query.message.caption:
-		full_text = query.message.caption
-	else:
-		full_text = query.message.text
-	base_text = full_text.split("<!-- BASE -->")[0].strip()
+	# Получаем сохранённый базовый текст по message_id. Если его нет, пытаемся извлечь из сообщения.
+	base_text = context.user_data.get(query.message.message_id)
+	if not base_text:
+		if query.message.caption:
+			base_text = query.message.caption.split("<!-- BASE -->")[0].strip()
+		else:
+			base_text = query.message.text.split("<!-- BASE -->")[0].strip()
 	
 	if query.data.startswith("parts_by_color:"):
 		try:
@@ -208,7 +210,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		
 		new_text = base_text + "\n\n" + header + "\n" + summary_text
 		
-		# Редактируем сообщение — если фото, редактируем caption, иначе текст.
 		if query.message.caption:
 			await query.edit_message_caption(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
 		else:
