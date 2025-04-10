@@ -178,8 +178,10 @@ def get_set_details(set_id):
 		data = response.json()
 		set_num = data.get("set_num", "n/a")
 		name = data.get("name", "n/a")
-		return set_num, name
-	return "n/a", "n/a"
+		year = data.get("year", "n/a")
+		num_parts = data.get("num_parts", "n/a")
+		return set_num, name, year, num_parts
+	return "n/a", "n/a", "n/a", "n/a"
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
@@ -196,11 +198,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		return
 
 	# Получаем основную информацию о наборе
-	set_num, set_name = get_set_details(set_id)
+	set_num, set_name, year, num_parts = get_set_details(set_id)
 	main_message = (
 		f"<b>Lego set details:</b>\n"
 		f"<b>Set Number:</b> {set_num}\n"
-		f"<b>Name:</b> {set_name}"
+		f"<b>Name:</b> {set_name}\n"
+		f"<b>Year Released:</b> {year}\n"
+		f"<b>Pieces:</b> {num_parts}"
 	)
 
 	# Получаем все детали набора
