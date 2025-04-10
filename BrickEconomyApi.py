@@ -6,18 +6,21 @@ BRICKECONOMY_API_KEY = os.environ["BRICKECONOMY_API_KEY"]
 
 def get_pricing_info(set_num: str) -> str:
 	"""
-	Получает информацию о ценах из BrickEconomy API по номеру набора (например, '42176').
+	Получает информацию о ценах из BrickEconomy API по номеру набора (например, '42176-1').
 	Возвращает форматированный текст для вставки в Telegram-сообщение.
 	"""
-	url = f"https://www.brickeconomy.com/api/set/{set_num}"
+	# BrickEconomy API ожидает короткий номер (без -1)
+	short_set_num = set_num.split("-")[0]
+
+	url = f"https://www.brickeconomy.com/api/set/{short_set_num}"
 	headers = {"x-api-key": BRICKECONOMY_API_KEY}
 
 	# Выполняем GET-запрос к API BrickEconomy
 	response = requests.get(url, headers=headers)
 
-	# Обработка ошибок
+	# Отладка: если ошибка — покажем код и тело
 	if response.status_code != 200:
-		return "⚠️ Failed to fetch price data from BrickEconomy."
+		return f"⚠️ BrickEconomy error: {response.status_code}\n{response.text}"
 
 	data = response.json()
 
