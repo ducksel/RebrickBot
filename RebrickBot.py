@@ -12,19 +12,17 @@ from telegram.ext import (
 )
 
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
-		
+
 def get_lego_us_url(set_num):
-		"""
-		Формирует URL для официального сайта LEGO US по формуле.
-		Принимает set_num (например, "42176-1") и возвращает URL вида:
-		  https://www.lego.com/en-us/product/42176
-		Проверка доступности не выполняется, чтобы избежать задержек.
-		"""
-		base = set_num.split("-")[0]  # Берём только числовую часть
-		url = f"https://www.lego.com/en-us/product/{base}"
-		return url		
-		
-		
+	"""
+	Формирует URL для официального сайта LEGO US по формуле.
+	Принимает set_num (например, "42176-1") и возвращает URL вида:
+	  https://www.lego.com/en-us/product/42176
+	Проверка доступности не выполняется, чтобы избежать задержек.
+	"""
+	base = set_num.split("-")[0]  # Берём только числовую часть
+	url = f"https://www.lego.com/en-us/product/{base}"
+	return url		
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await update.message.reply_text(
@@ -62,7 +60,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Pieces:</b> {num_parts}"
 			)
 			
-			# Формируем URL для официального LEGO US, проверив доступность страницы
+			# Формируем URL для официального LEGO US
 			lego_us_url = get_lego_us_url(set_num)
 			
 			keyboard = InlineKeyboardMarkup([
@@ -172,6 +170,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
 	
+	# Получаем исходное сообщение: если сообщение отправлено с фотографией, берем caption, иначе текст.
+	if query.message.caption:
+		original_text = query.message.caption
+	else:
+		original_text = query.message.text
+
 	if query.data.startswith("parts_by_color:"):
 		try:
 			_, set_id = query.data.split(":", 1)
@@ -185,7 +189,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			return
 
 		set_num, set_name = get_set_details(set_id)
-		header = f"<b>{set_num} {set_name}</b>"
+		header = f"<b>{set_num} {set_name} has:</b>"
 		
 		color_summary = {}
 		for part in parts:
@@ -195,11 +199,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			color_summary[color_name] = color_summary.get(color_name, 0) + quantity
 		
 		sorted_colors = sorted(color_summary.items(), key=lambda item: item[1], reverse=True)
-		message_lines = [header, "Parts Summary by Color:"]
+		summary_lines = ["", "<b>Parts Summary by Color:</b>"]
 		for color_name, total in sorted_colors:
-			message_lines.append(f"<b>{color_name}</b>: {total}")
-		message = "\n".join(message_lines)
-		await query.message.reply_text(message, parse_mode="HTML")
+			summary_lines.append(f"<b>{color_name}</b>: {total}")
+		summary_text = "\n".join(summary_lines)
+		new_text = original_text + "\n\n" + header + "\n" + summary_text
+		
+		# Если исходное сообщение было фото с caption, редактируем caption; иначе – текст.
+		if query.message.caption:
+			await query.edit_message_caption(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
+		else:
+			await query.edit_message_text(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
 	
 	elif query.data.startswith("parts_by_type:"):
 		try:
@@ -214,15 +224,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			return
 		
 		set_num, set_name = get_set_details(set_id)
-		header = f"<b>{set_num} {set_name}</b>"
+		header = f"<b>{set_num} {set_name} has:</b>"
 		
 		category_summary = group_parts_by_dynamic_category(parts)
 		sorted_categories = sorted(category_summary.items(), key=lambda item: item[1], reverse=True)
-		message_lines = [header, "Parts Summary by Type:"]
+		summary_lines = ["", "<b>Parts Summary by Type:</b>"]
 		for cat_name, total in sorted_categories:
-			message_lines.append(f"<b>{cat_name}</b>: {total}")
-		message = "\n".join(message_lines)
-		await query.message.reply_text(message, parse_mode="HTML")
+			summary_lines.append(f"<b>{cat_name}</b>: {total}")
+		summary_text = "\n".join(summary_lines)
+		new_text = original_text + "\n\n" + header + "\n" + summary_text
+		
+		if query.message.caption:
+			await query.edit_message_caption(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
+		else:
+			await query.edit_message_text(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
 	else:
 		await query.message.reply_text("Unknown callback data.")
 
