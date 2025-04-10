@@ -1,5 +1,6 @@
 import os
 import requests
+import html
 
 # Получаем данные из переменных окружения Railway
 BRICKECONOMY_API_KEY = os.environ["BRICKECONOMY_API_KEY"]
@@ -24,14 +25,16 @@ def get_pricing_info(set_num: str) -> str:
 		# Выполняем GET-запрос к API BrickEconomy
 		response = requests.get(url, headers=headers, timeout=10)
 
-		# Отладка: если ошибка — покажем код и тело
+		# Отладка: если ошибка — покажем код и безопасное тело
 		if response.status_code != 200:
-			return f"⚠️ BrickEconomy error: {response.status_code}\n{response.text}"
+			escaped_body = html.escape(response.text[:1000])  # обрезаем и экранируем HTML
+			return f"⚠️ BrickEconomy error: {response.status_code}\n<pre>{escaped_body}</pre>"
 
 		try:
 			data = response.json()
 		except Exception as e:
-			return f"⚠️ Failed to parse JSON from BrickEconomy:\n{str(e)}\n{response.text}"
+			escaped_body = html.escape(response.text[:1000])
+			return f"⚠️ Failed to parse JSON from BrickEconomy:\n<pre>{escaped_body}</pre>"
 
 		# Начинаем формировать текст ответа
 		lines = ["\n<b>Price Info from BrickEconomy:</b>"]
