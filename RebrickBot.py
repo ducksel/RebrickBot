@@ -77,7 +77,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				[
 					InlineKeyboardButton("View on Rebrickable", url=set_url)
 				],
-				InlineKeyboardButton("View on LEGO US", url=lego_us_url)
+				[
+					InlineKeyboardButton("View on LEGO US", url=lego_us_url)
+				]
 			])
 			
 			if set_img_url:
