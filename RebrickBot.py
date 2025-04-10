@@ -52,15 +52,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			set_img_url = data.get("set_img_url")
 			set_url = data.get("set_url", "n/a")
 			
-			message = (
+			# Формируем базовое сообщение с HTML-разметкой и маркером
+			base_message = (
 				f"<b>Lego set details:</b>\n"
 				f"<b>Set Number:</b> {set_num}\n"
 				f"<b>Name:</b> {name}\n"
 				f"<b>Year Released:</b> {year}\n"
-				f"<b>Pieces:</b> {num_parts}"
+				f"<b>Pieces:</b> {num_parts}\n\n"
+				"<!-- BASE -->"
 			)
 			
-			# Формируем URL для официального LEGO US
 			lego_us_url = get_lego_us_url(set_num)
 			
 			keyboard = InlineKeyboardMarkup([
@@ -79,13 +80,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			if set_img_url:
 				await update.message.reply_photo(
 					photo=set_img_url,
-					caption=message,
+					caption=base_message,
 					parse_mode="HTML",
 					reply_markup=keyboard
 				)
 			else:
 				await update.message.reply_text(
-					message,
+					base_message,
 					parse_mode="HTML",
 					reply_markup=keyboard
 				)
@@ -170,12 +171,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
 	
-	# Получаем исходное сообщение: если сообщение отправлено с фотографией, берем caption, иначе текст.
+	# Получаем базовый текст из исходного сообщения по маркеру.
 	if query.message.caption:
-		original_text = query.message.caption
+		full_text = query.message.caption
 	else:
-		original_text = query.message.text
-
+		full_text = query.message.text
+	base_text = full_text.split("<!-- BASE -->")[0].strip()
+	
 	if query.data.startswith("parts_by_color:"):
 		try:
 			_, set_id = query.data.split(":", 1)
@@ -203,9 +205,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		for color_name, total in sorted_colors:
 			summary_lines.append(f"<b>{color_name}</b>: {total}")
 		summary_text = "\n".join(summary_lines)
-		new_text = original_text + "\n\n" + header + "\n" + summary_text
 		
-		# Если исходное сообщение было фото с caption, редактируем caption; иначе – текст.
+		new_text = base_text + "\n\n" + header + "\n" + summary_text
+		
+		# Редактируем сообщение — если фото, редактируем caption, иначе текст.
 		if query.message.caption:
 			await query.edit_message_caption(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
 		else:
@@ -232,7 +235,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		for cat_name, total in sorted_categories:
 			summary_lines.append(f"<b>{cat_name}</b>: {total}")
 		summary_text = "\n".join(summary_lines)
-		new_text = original_text + "\n\n" + header + "\n" + summary_text
+		
+		new_text = base_text + "\n\n" + header + "\n" + summary_text
 		
 		if query.message.caption:
 			await query.edit_message_caption(new_text, parse_mode="HTML", reply_markup=query.message.reply_markup)
