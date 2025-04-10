@@ -28,7 +28,7 @@ def get_pricing_info(set_num: str) -> str:
 		if response.status_code != 200:
 			return f"⚠️ BrickEconomy error: {response.status_code}\n{response.text}"
 
-		ry:
+		try:
 			data = response.json()
 		except Exception as e:
 			return f"⚠️ Failed to parse JSON from BrickEconomy:\n{str(e)}\n{response.text}"
