@@ -12,23 +12,19 @@ from telegram.ext import (
 )
 
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
-
+		
 def get_lego_us_url(set_num):
-	"""
-	Формирует URL для официального сайта LEGO US по формуле.
-	Предполагается, что set_num имеет вид "42176-1"; будем брать часть до тире.
-	"""
-	base = set_num.split("-")[0]  # Берём только числовую часть
-	url = f"https://www.lego.com/en-us/product/{base}"
-	# Пытаемся проверить доступность страницы (таймаут 5 сек)
-	try:
-		resp = requests.get(url, timeout=5)
-		if resp.status_code == 200:
-			return url
-		else:
-			return url  # Если страница не отвечает 200, всё равно возвращаем URL
-	except Exception:
-		return url
+		"""
+		Формирует URL для официального сайта LEGO US по формуле.
+		Принимает set_num (например, "42176-1") и возвращает URL вида:
+		  https://www.lego.com/en-us/product/42176
+		Проверка доступности не выполняется, чтобы избежать задержек.
+		"""
+		base = set_num.split("-")[0]  # Берём только числовую часть
+		url = f"https://www.lego.com/en-us/product/{base}"
+		return url		
+		
+		
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await update.message.reply_text(
