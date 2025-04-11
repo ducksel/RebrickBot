@@ -94,7 +94,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 			# Отправляем изображение отдельно, если оно есть
 			if set_img_url:
-				await update.message.reply_photo(photo=set_img_url)
+				print(f"Photo processing")
+				try:
+					await update.message.reply_photo(photo=set_img_url)
+				except Exception as e:					
+					print(f"❌ Failed to send photo: {e}")
+
 
 			lego_us_url = get_lego_us_url(set_num)
 			keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)
