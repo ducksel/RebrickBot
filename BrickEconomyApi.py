@@ -39,9 +39,13 @@ def get_pricing_info(set_num: str) -> str:
 		if name or year:
 			lines.append(f"<b>{name}</b> ({year})")
 
-		# Доступность
+		# Доступность (с учётом признака retired)
 		availability = data.get("availability")
-		if availability:
+		retired = data.get("retired", False)
+		retired_date = data.get("retired_date")
+		if retired:
+			lines.append(f"Availability: ❌ Retired ({retired_date})")
+		elif availability:
 			availability_map = {
 				"retail": "🛒 Retail",
 				"retaillimited": "🏷 Limited Retail",
