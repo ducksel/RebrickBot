@@ -62,12 +62,14 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	text = update.message.text.strip()
 	print(f"Received text: {text}")
-	
+
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
-	if re.fullmatch(r"\d{4,5}", text):
-		lego_code = text
-		set_id = f"{lego_code}-1"
-		
+	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
+	if match:
+		base = match.group(1)
+		suffix = match.group(2) or "-1"
+		set_id = f"{base}{suffix}"
+
 		# Запрос к API Rebrickable
 		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
 		headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
@@ -92,14 +94,25 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Pieces:</b> {num_parts}"
 			)
 
-			# Отправляем изображение отдельно, если оно есть
+			# Обработка изображения с проверкой размера
 			if set_img_url:
 				print(f"Photo processing")
 				try:
-					await update.message.reply_photo(photo=set_img_url)
-				except Exception as e:					
-					print(f"❌ Failed to send photo: {e}")
+					img_head = requests.head(set_img_url, allow_redirects=True, timeout=5)
+					size = int(img_head.headers.get("Content-Length", 0))
+					print(f"Image size: {size} bytes")
 
+					if size <= 5_000_000:
+						await update.message.reply_photo(photo=set_img_url)
+					else:
+						img_response = requests.get(set_img_url, timeout=10)
+						if img_response.status_code == 200:
+							image_data = io.BytesIO(img_response.content)
+							await update.message.reply_photo(photo=InputFile(image_data, filename="lego.jpg"))
+						else:
+							print(f"❌ Image download failed: {img_response.status_code}")
+				except Exception as e:
+					print(f"❌ Failed to send photo: {e}")
 
 			lego_us_url = get_lego_us_url(set_num)
 			keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)

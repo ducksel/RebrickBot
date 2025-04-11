@@ -44,11 +44,11 @@ def get_pricing_info(set_num: str) -> str:
 		retired = data.get("retired", False)
 		retired_date = data.get("retired_date")
 		if retired:
-			lines.append(f"Availability: ❌ Retired ({retired_date})")
+			lines.append(f"Availability: ❌ Retired {retired_date}")
 		elif availability:
 			availability_map = {
 				"retail": "🛒 Retail",
-				"retaillimited": "🏷 Limited Retail",
+				"retaillimited": "🏷 Limited Retail (retiring soon)",
 				"exclusive": "⭐️ Exclusive",
 				"giftwithpurchase": "🎁 Gift with Purchase",
 				"other": "📦 Other"
