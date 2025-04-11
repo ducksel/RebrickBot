@@ -12,10 +12,8 @@ def get_pricing_info(set_num: str) -> str:
 	Возвращает форматированный текст для вставки в Telegram-сообщение.
 	"""
 	try:
-		# BrickEconomy API ожидает короткий номер (без -1)
-		short_set_num = set_num.split("-")[0]
-
-		url = f"https://www.brickeconomy.com/api/v1/set?number={short_set_num}-1"
+		# BrickEconomy API требует путь вида /api/v1/set/<set_num>, например /api/v1/set/42176-1
+		url = f"https://www.brickeconomy.com/api/v1/set/{set_num}"
 		headers = {
 			"x-apikey": BRICKECONOMY_API_KEY,
 			"User-Agent": BRICKECONOMY_USER_AGENT,
