@@ -29,34 +29,32 @@ def get_pricing_info(set_num: str) -> str:
 			return f"⚠️ BrickEconomy error: {response.status_code}\n<pre>{escaped_body}</pre>"
 
 		try:
-			data = response.json()
+			json_data = response.json()
 		except Exception as e:
 			escaped_body = html.escape(response.text[:1000])
 			return f"⚠️ Failed to parse JSON from BrickEconomy:\n<pre>{escaped_body}</pre>"
 
+		# Данные находятся в ключе "data"
+		data = json_data.get("data", {})
+
 		# Начинаем формировать текст ответа
 		lines = ["\n<b>Price Info from BrickEconomy:</b>"]
 
-		# Добавляем данные, если они доступны в ответе
-		retail = data.get("retail_price")
+		retail = data.get("retail_price_us")
 		if retail:
-			lines.append(f"Retail: ${retail:.2f}")
+			lines.append(f"Retail (US): ${retail:.2f}")
 
-		current = data.get("current_value")
+		current = data.get("current_value_new")
 		if current:
 			lines.append(f"Current Value (New): ${current:.2f}")
 
-		used = data.get("used_value")
-		if used:
-			lines.append(f"Current Value (Used): ${used:.2f}")
+		forecast_2y = data.get("forecast_value_new_2_years")
+		if forecast_2y:
+			lines.append(f"Forecast 2yr: ${forecast_2y:.2f}")
 
-		annual_growth = data.get("annual_growth_rate")
-		if annual_growth:
-			lines.append(f"Annual Growth: {annual_growth:.2f}%")
-
-		price_trend = data.get("price_trend")
-		if price_trend:
-			lines.append(f"Price Trend: ${price_trend:.2f}")
+		forecast_5y = data.get("forecast_value_new_5_years")
+		if forecast_5y:
+			lines.append(f"Forecast 5yr: ${forecast_5y:.2f}")
 
 		# Если ничего не найдено — выводим предупреждение
 		if len(lines) == 1:
