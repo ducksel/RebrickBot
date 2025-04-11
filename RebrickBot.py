@@ -62,20 +62,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	text = update.message.text.strip()
 	print(f"Received text: {text}")
-
+	
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
 	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
 	if match:
 		base = match.group(1)
 		suffix = match.group(2) or "-1"
 		set_id = f"{base}{suffix}"
-
+	
 		# Запрос к API Rebrickable
 		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
 		headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
 		print(f"Making request for set {set_id}")
 		response = requests.get(url, headers=headers)
-
+	
 		if response.status_code == 200:
 			data = response.json()
 			set_num = data.get("set_num", "n/a")
@@ -84,7 +84,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			num_parts = data.get("num_parts", "n/a")
 			set_img_url = data.get("set_img_url")
 			set_url = data.get("set_url", "n/a")
-
+	
 			# Формируем основное текстовое сообщение
 			message = (
 				f"<b>Lego set details:</b>\n"
@@ -93,30 +93,34 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Year Released:</b> {year}\n"
 				f"<b>Pieces:</b> {num_parts}"
 			)
-
+	
 			# Обработка изображения с проверкой размера
 			if set_img_url:
 				print(f"Photo processing")
 				try:
 					img_head = requests.head(set_img_url, allow_redirects=True, timeout=5)
-					size = int(img_head.headers.get("Content-Length", 0))
-					print(f"Image size: {size} bytes")
-
-					if size <= 5_000_000:
-						await update.message.reply_photo(photo=set_img_url)
-					else:
+					size_str = img_head.headers.get("Content-Length")
+					if size_str is not None:
+						size = int(size_str)
+						print(f"Image size: {size} bytes")
+						if size <= 5_000_000:
+							await update.message.reply_photo(photo=set_img_url)
+							set_img_url = None  # уже отправили
+					if set_img_url:
 						img_response = requests.get(set_img_url, timeout=10)
 						if img_response.status_code == 200:
+							import io
+							from telegram import InputFile
 							image_data = io.BytesIO(img_response.content)
 							await update.message.reply_photo(photo=InputFile(image_data, filename="lego.jpg"))
 						else:
 							print(f"❌ Image download failed: {img_response.status_code}")
 				except Exception as e:
 					print(f"❌ Failed to send photo: {e}")
-
+	
 			lego_us_url = get_lego_us_url(set_num)
 			keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)
-
+	
 			await update.message.reply_text(
 				text=message,
 				parse_mode="HTML",
