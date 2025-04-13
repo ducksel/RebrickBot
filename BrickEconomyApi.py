@@ -8,6 +8,10 @@ BRICKECONOMY_API_KEY = os.environ["BRICKECONOMY_API_KEY"]
 BRICKECONOMY_USER_AGENT = os.environ["BRICKECONOMY_USER_AGENT"]
 
 def get_pricing_info(set_num: str) -> str:
+	"""
+	Получает информацию о ценах из BrickEconomy API по номеру набора.
+	Возвращает отформатированный HTML-текст для Telegram.
+	"""
 	try:
 		url = f"https://www.brickeconomy.com/api/v1/set/{set_num}"
 		headers = {
@@ -19,22 +23,24 @@ def get_pricing_info(set_num: str) -> str:
 
 		if response.status_code != 200:
 			escaped_body = html.escape(response.text[:1000])
-			return f"⚠️ BrickEconomy error: {response.status_code}ч<pre>{escaped_body}</pre>"
+			return f"⚠️ BrickEconomy error: {response.status_code}\n<pre>{escaped_body}</pre>"
 
 		try:
 			json_data = response.json()
 		except Exception:
 			escaped_body = html.escape(response.text[:1000])
-			return f"⚠️ Failed to parse JSON from BrickEconomy:<pre>{escaped_body}</pre>"
+			return f"⚠️ Failed to parse JSON from BrickEconomy:\n<pre>{escaped_body}</pre>"
 
 		data = json_data.get("data", {})
 		lines = ["<b>📦 BrickEconomy Set Info:</b>"]
 
+		# Название и год
 		name = data.get("name")
 		year = data.get("year")
 		if name or year:
-			lines.append(f"<b>{name}</b> ({year})")
+			lines.append(f"<b>{html.escape(name)}</b> ({year})")
 
+		# Сроки продаж
 		start_date = data.get("release_date")
 		end_date = data.get("retired_date") if data.get("retired") else None
 		if start_date:
@@ -42,13 +48,14 @@ def get_pricing_info(set_num: str) -> str:
 				start_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
 				if end_date:
 					end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
-					delta_months = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
-					lines.append(f"🗓 {start_date} – {end_date} ({delta_months} months)")
+					months = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
+					lines.append(f"🗓 {start_date} – {end_date} ({months} months)")
 				else:
 					lines.append(f"🟢 On sale since: {start_date}")
 			except Exception:
 				lines.append("⚠️ Could not parse sale period.")
 
+		# Доступность
 		availability = data.get("availability")
 		retired = data.get("retired", False)
 		if retired:
@@ -63,6 +70,7 @@ def get_pricing_info(set_num: str) -> str:
 			}
 			lines.append(f"Availability: {availability_map.get(availability, availability)}")
 
+		# Розничные цены
 		retail_us = data.get("retail_price_us")
 		retail_eu = data.get("retail_price_eu")
 		if retail_us or retail_eu:
@@ -73,14 +81,16 @@ def get_pricing_info(set_num: str) -> str:
 				retail_str += f"  🇪🇺 €{retail_eu:.2f}"
 			lines.append(retail_str)
 
+		# Текущая цена и PPP
 		current = data.get("current_value_new")
 		num_parts = data.get("num_parts")
 		if current:
 			lines.append(f"<b>🔄 Current Value (New):</b> ${current:.2f}")
-			if num_parts and isinstance(num_parts, int) and num_parts > 0:
-				ppp = current / num_parts
-				lines.append(f"<b>🧮 PPP (€/piece):</b> ${ppp:.2f}")
+		if retail_eu and num_parts and isinstance(num_parts, int) and num_parts > 0:
+			ppp = retail_eu / num_parts
+			lines.append(f"<b>🧮 PPP (€/piece):</b> €{ppp:.2f}")
 
+		# Прогнозы
 		forecast_2y = data.get("forecast_value_new_2_years")
 		forecast_5y = data.get("forecast_value_new_5_years")
 		if forecast_2y or forecast_5y:
@@ -93,7 +103,7 @@ def get_pricing_info(set_num: str) -> str:
 		if len(lines) == 1:
 			return "⚠️ No pricing data found for this set."
 
-		return "".join(lines)
+		return "\n".join(lines)
 
 	except Exception as e:
-		return f"⚠️ Request to BrickEconomy failed:{str(e)}"
+		return f"⚠️ Request to BrickEconomy failed:\n{str(e)}"
