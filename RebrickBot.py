@@ -11,6 +11,7 @@ from telegram.ext import (
 	filters
 )
 from BrickEconomyApi import get_pricing_info  # импортируем функцию из модуля BrickEconomy
+from analytics import track_command, track_feature, track_callback  # добавлено для логирования действий
 
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
@@ -50,6 +51,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	Команда /start — показывает приветственное сообщение.
 	"""
+	user = update.effective_user
+	track_command(user.id, "start", username=user.username, language_code=user.language_code)
 	await update.message.reply_text(
 		"Hello! Please send me a LEGO set code (4 or 5 digits).",
 		parse_mode="HTML"
@@ -62,6 +65,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	text = update.message.text.strip()
 	print(f"Received text: {text}")
+
+	user = update.effective_user
+	track_feature(user.id, "text_query")
 	
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
 	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
@@ -69,13 +75,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		base = match.group(1)
 		suffix = match.group(2) or "-1"
 		set_id = f"{base}{suffix}"
-	
+
 		# Запрос к API Rebrickable
 		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
 		headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
 		print(f"Making request for set {set_id}")
 		response = requests.get(url, headers=headers)
-	
+
 		if response.status_code == 200:
 			data = response.json()
 			set_num = data.get("set_num", "n/a")
@@ -84,7 +90,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			num_parts = data.get("num_parts", "n/a")
 			set_img_url = data.get("set_img_url")
 			set_url = data.get("set_url", "n/a")
-	
+
 			# Формируем основное текстовое сообщение
 			message = (
 				f"<b>Set Number:</b> {set_num}\n"
@@ -92,7 +98,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 				f"<b>Year Released:</b> {year}\n"
 				f"<b>Pieces:</b> {num_parts}"
 			)
-	
+
 			# Обработка изображения с проверкой размера
 			if set_img_url:
 				print(f"Photo processing")
@@ -116,10 +122,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 							print(f"❌ Image download failed: {img_response.status_code}")
 				except Exception as e:
 					print(f"❌ Failed to send photo: {e}")
-	
+
 			lego_us_url = get_lego_us_url(set_num)
 			keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)
-	
+
 			await update.message.reply_text(
 				text=message,
 				parse_mode="HTML",
@@ -132,75 +138,75 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	else:
 		await update.message.reply_text("❌ Invalid LEGO code. Please enter exactly 4 or 5 digits.")
 
-def get_all_parts(set_id):
-	"""
-	Получает все детали набора, обходя все страницы (pagination)
-	"""
-	parts = []
-	url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/parts/"
-	headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
-	while url:
-		response = requests.get(url, headers=headers)
-		if response.status_code != 200:
-			break
-		data = response.json()
-		parts.extend(data.get("results", []))
-		url = data.get("next")
-	return parts
-
-def get_categories():
-	"""
-	Получает все категории деталей из Rebrickable и возвращает словарь,
-	где ключ – идентификатор категории, а значение – название категории.
-	Обходит все страницы результата.
-	"""
-	categories = {}
-	url = "https://rebrickable.com/api/v3/lego/part_categories/"
-	headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
-	while url:
-		response = requests.get(url, headers=headers)
-		if response.status_code != 200:
-			break
-		data = response.json()
-		for cat in data.get("results", []):
-			cat_id = cat.get("id")
-			cat_name = cat.get("name")
-			if cat_id is not None and cat_name is not None:
-				categories[cat_id] = cat_name
-		url = data.get("next")
-	return categories
-
-def group_parts_by_dynamic_category(parts):
-	"""
-	Группирует детали набора по категориям, полученным динамически через get_categories.
-	Возвращает словарь: ключ – название категории, значение – суммарное количество деталей.
-	"""
-	categories = get_categories()  # получаем словарь {id: name}
-	category_summary = {}
-	for part in parts:
-		part_obj = part.get("part", {})
-		cat_id = part_obj.get("part_cat_id")
-		quantity = part.get("quantity", 0)
-		if cat_id is not None:
-			cat_name = categories.get(cat_id, f"Category {cat_id}")
-			category_summary[cat_name] = category_summary.get(cat_name, 0) + quantity
-	return category_summary
-
-def get_set_details(set_id):
-	"""
-	Получает базовую информацию о наборе (номер, имя, год и количество деталей)
-	"""
-	url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
-	headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
-	response = requests.get(url, headers=headers)
-	if response.status_code == 200:
-		data = response.json()
-		set_num = data.get("set_num", "n/a")
-		name = data.get("name", "n/a")
-		year = data.get("year", "n/a")
-		num_parts = data.get("num_parts", "n/a")
-		return set_num, name, year, num_parts
-	return "n/a", "n/a", "n/a", "n/a"
+		def get_all_parts(set_id):
+			"""
+			Получает все детали набора, обходя все страницы (pagination)
+			"""
+			parts = []
+			url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/parts/"
+			headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
+			while url:
+				response = requests.get(url, headers=headers)
+				if response.status_code != 200:
+					break
+				data = response.json()
+				parts.extend(data.get("results", []))
+				url = data.get("next")
+			return parts
+		
+		def get_categories():
+			"""
+			Получает все категории деталей из Rebrickable и возвращает словарь,
+			где ключ – идентификатор категории, а значение – название категории.
+			Обходит все страницы результата.
+			"""
+			categories = {}
+			url = "https://rebrickable.com/api/v3/lego/part_categories/"
+			headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
+			while url:
+				response = requests.get(url, headers=headers)
+				if response.status_code != 200:
+					break
+				data = response.json()
+				for cat in data.get("results", []):
+					cat_id = cat.get("id")
+					cat_name = cat.get("name")
+					if cat_id is not None and cat_name is not None:
+						categories[cat_id] = cat_name
+				url = data.get("next")
+			return categories
+		
+		def group_parts_by_dynamic_category(parts):
+			"""
+			Группирует детали набора по категориям, полученным динамически через get_categories.
+			Возвращает словарь: ключ – название категории, значение – суммарное количество деталей.
+			"""
+			categories = get_categories()  # получаем словарь {id: name}
+			category_summary = {}
+			for part in parts:
+				part_obj = part.get("part", {})
+				cat_id = part_obj.get("part_cat_id")
+				quantity = part.get("quantity", 0)
+				if cat_id is not None:
+					cat_name = categories.get(cat_id, f"Category {cat_id}")
+					category_summary[cat_name] = category_summary.get(cat_name, 0) + quantity
+			return category_summary
+		
+		def get_set_details(set_id):
+			"""
+			Получает базовую информацию о наборе (номер, имя, год и количество деталей)
+			"""
+			url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
+			headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
+			response = requests.get(url, headers=headers)
+			if response.status_code == 200:
+				data = response.json()
+				set_num = data.get("set_num", "n/a")
+				name = data.get("name", "n/a")
+				year = data.get("year", "n/a")
+				num_parts = data.get("num_parts", "n/a")
+				return set_num, name, year, num_parts
+			return "n/a", "n/a", "n/a", "n/a"
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
@@ -210,13 +216,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	query = update.callback_query
 	await query.answer()
 
+	user = query.from_user
+	track_callback(user.id, query.data)
+
 	# Разбираем callback_data: action:set_id
 	try:
 		action, set_id = query.data.split(":", 1)
 	except ValueError:
 		await query.message.reply_text("Error: Set information is missing.")
 		return
-		
+
 	# Получаем основную информацию о наборе
 	set_num, set_name, year, num_parts = get_set_details(set_id)
 	main_message = (
@@ -269,7 +278,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		# Информация о ценах из BrickEconomy API
 		# Передаём set_id (например, '42176-1') — функция сама обрежет хвост
 		additional_info = get_pricing_info(set_id)
-
 	else:
 		additional_info = "\n⚠️ Unknown action."
 
@@ -289,4 +297,3 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 app.add_handler(CallbackQueryHandler(handle_callback))
 app.run_polling()
-
