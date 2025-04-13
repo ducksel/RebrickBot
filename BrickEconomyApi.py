@@ -32,13 +32,7 @@ def get_pricing_info(set_num: str) -> str:
 			return f"⚠️ Failed to parse JSON from BrickEconomy:\n<pre>{escaped_body}</pre>"
 
 		data = json_data.get("data", {})
-		lines = ["<b>📦 BrickEconomy Set Info:</b>"]
-
-		# Название и год
-		name = data.get("name")
-		year = data.get("year")
-		if name or year:
-			lines.append(f"<b>{html.escape(name)}</b> ({year})")
+		lines = ["\n<b>📊 BrickEconomy Set Info:</b>"]
 
 		# Сроки продаж
 		start_date = data.get("released_date")
@@ -59,7 +53,7 @@ def get_pricing_info(set_num: str) -> str:
 		availability = data.get("availability")
 		retired = data.get("retired", False)
 		if retired:
-			lines.append("Availability: ❌ Retired")
+			lines.append("Availability: 🔴 Retired")
 		elif availability:
 			availability_map = {
 				"retail": "🛒 Retail",
@@ -88,7 +82,7 @@ def get_pricing_info(set_num: str) -> str:
 			lines.append(f"<b>🔄 Current Value (New):</b> ${current:.2f}")
 		if retail_eu is not None and num_parts and isinstance(num_parts, int) and num_parts > 0:
 			ppp = retail_eu / num_parts
-			lines.append(f"<b>🧮 PPP (€/piece):</b> €{ppp:.2f}")
+			lines.append(f"<b>🧮 Price Per Piece:</b> €{ppp:.2f}")
 
 		# Прогнозы
 		forecast_2y = data.get("forecast_value_new_2_years")
