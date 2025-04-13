@@ -28,7 +28,7 @@ def get_pricing_info(set_num: str) -> str:
 			return f"⚠️ Failed to parse JSON from BrickEconomy:\\n<pre>{escaped_body}</pre>"
 	
 		data = json_data.get("data", {})
-		lines = ["\\n<b>📦 BrickEconomy Set Info:</b>"]
+		lines = ["\n<b>📦 BrickEconomy Set Info:</b>"]
 	
 		name = data.get("name")
 		year = data.get("year")
