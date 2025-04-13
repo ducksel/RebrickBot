@@ -77,9 +77,9 @@ def get_pricing_info(set_num: str) -> str:
 
 		# Текущая цена и PPP
 		current = data.get("current_value_new")
-		avg = data["current_value_used"]
-		low = data["current_value_used_low"]
-		high = data["current_value_used_high"]
+		avg = data.get["current_value_used"]
+		low = data.get["current_value_used_low"]
+		high = data.get["current_value_used_high"]
 		
 		num_parts = data.get("pieces_count")
 		if current:
