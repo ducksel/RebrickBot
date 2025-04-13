@@ -87,7 +87,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	
 			# Формируем основное текстовое сообщение
 			message = (
-				f"<b>Lego set details:</b>\n"
 				f"<b>Set Number:</b> {set_num}\n"
 				f"<b>Name:</b> {name}\n"
 				f"<b>Year Released:</b> {year}\n"

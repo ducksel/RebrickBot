@@ -5,7 +5,7 @@ import datetime
 
 # Получаем данные из переменных окружения Railway
 BRICKECONOMY_API_KEY = os.environ["BRICKECONOMY_API_KEY"]
-BRICKECONOMY_USER_AGENT = os.environ["BRICKECONOMY_USER_AGENT"]
+BRICKECONOMY_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
 def get_pricing_info(set_num: str) -> str:
 	"""
