@@ -27,7 +27,7 @@ try:
 
 	try:
 		json_data = response.json()
-	except Exception as e:
+	except Exception:
 		escaped_body = html.escape(response.text[:1000])
 		return f"⚠️ Failed to parse JSON from BrickEconomy:\n<pre>{escaped_body}</pre>"
 
@@ -44,13 +44,16 @@ try:
 	start_date = data.get("release_date")
 	end_date = data.get("retired_date") if data.get("retired") else None
 	if start_date:
-		start_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-		if end_date:
-			end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
-			delta_months = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
-			lines.append(f"🗓 {start_date} – {end_date} ({delta_months} months)")
-		else:
-			lines.append(f"🟢 On sale since: {start_date}")
+		try:
+			start_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+			if end_date:
+				end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+				delta_months = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
+				lines.append(f"🗓 {start_date} – {end_date} ({delta_months} months)")
+			else:
+				lines.append(f"🟢 On sale since: {start_date}")
+		except Exception as e:
+			lines.append(f"⚠️ Date parsing error: {e}")
 
 	# Доступность
 	availability = data.get("availability")
