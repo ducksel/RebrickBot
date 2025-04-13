@@ -217,7 +217,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await query.answer()
 
 	user = query.from_user
-	track_callback(user.id, query.data)
+	track_callback(
+			user.id,
+			query.data,
+			username=user.username,
+			language_code=user.language_code
+		)
 
 	# Разбираем callback_data: action:set_id
 	try:
