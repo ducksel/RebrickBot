@@ -88,7 +88,8 @@ def get_pricing_info(set_num: str) -> str:
 			ppp = retail_eu / num_parts
 			lines.append(f"<b>🧮 Price Per Piece:</b> €{ppp:.2f}")
 			
-		lines.append(f"<b>Used:</b> ${avg:.2f} <i>(low: ${low:.2f} · high: ${high:.2f})</i>")
+		if avg:
+			lines.append(f"<b>Used:</b> ${avg:.2f} <i>(low: ${low:.2f} · high: ${high:.2f})</i>")
 
 		# Прогнозы
 		forecast_2y = data.get("forecast_value_new_2_years")
