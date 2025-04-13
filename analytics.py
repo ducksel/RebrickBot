@@ -32,7 +32,11 @@ async def send_ga_event(user_id: int, event_name: str, params: dict = None, user
 	)
 
 	# Добавляем базовые параметры
-	event_params = {"user_engagement": 1}
+	event_params = {
+			"user_engagement": 1,
+			"debug_mode": 1  # ⬅️ Включить для отладки, выключить для использования
+		}
+	
 	if params:
 		event_params.update(params)
 

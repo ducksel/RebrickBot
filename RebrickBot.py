@@ -122,7 +122,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	Команда /start — показывает приветственное сообщение.
 	"""
 	user = update.effective_user
-	track_command(user.id, "start", username=user.username, language_code=user.language_code)
+	track_command(
+		user.id,
+		"start",
+		username=user.username,
+		language_code=user.language_code
+	)
 	await update.message.reply_text(
 		"Hello! Please send me a LEGO set code (4 or 5 digits).",
 		parse_mode="HTML"
