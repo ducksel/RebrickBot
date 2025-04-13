@@ -77,12 +77,18 @@ def get_pricing_info(set_num: str) -> str:
 
 		# Текущая цена и PPP
 		current = data.get("current_value_new")
+		avg = data["current_value_used"]
+		low = data["current_value_used_low"]
+		high = data["current_value_used_high"]
+		
 		num_parts = data.get("pieces_count")
 		if current:
 			lines.append(f"<b>🔄 Current Value (New):</b> ${current:.2f}")
 		if retail_eu is not None and num_parts and isinstance(num_parts, int) and num_parts > 0:
 			ppp = retail_eu / num_parts
 			lines.append(f"<b>🧮 Price Per Piece:</b> €{ppp:.2f}")
+			
+		lines.append(f"<b>Used:</b> ${avg:.2f} <i>(low: ${low:.2f} · high: ${high:.2f})</i>")
 
 		# Прогнозы
 		forecast_2y = data.get("forecast_value_new_2_years")
