@@ -41,7 +41,7 @@ def get_pricing_info(set_num: str) -> str:
 			lines.append(f"<b>{html.escape(name)}</b> ({year})")
 
 		# Сроки продаж
-		start_date = data.get("release_date")
+		start_date = data.get("released_date")
 		end_date = data.get("retired_date") if data.get("retired") else None
 		if start_date:
 			try:
@@ -83,10 +83,10 @@ def get_pricing_info(set_num: str) -> str:
 
 		# Текущая цена и PPP
 		current = data.get("current_value_new")
-		num_parts = data.get("num_parts")
+		num_parts = data.get("pieces_count")
 		if current:
 			lines.append(f"<b>🔄 Current Value (New):</b> ${current:.2f}")
-		if retail_eu and num_parts and isinstance(num_parts, int) and num_parts > 0:
+		if retail_eu is not None and num_parts and isinstance(num_parts, int) and num_parts > 0:
 			ppp = retail_eu / num_parts
 			lines.append(f"<b>🧮 PPP (€/piece):</b> €{ppp:.2f}")
 
