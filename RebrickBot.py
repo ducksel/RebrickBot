@@ -220,7 +220,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	# Получаем основную информацию о наборе
 	set_num, set_name, year, num_parts = get_set_details(set_id)
 	main_message = (
-		f"<b>Lego set details:</b>\n"
 		f"<b>Set Number:</b> {set_num}\n"
 		f"<b>Name:</b> {set_name}\n"
 		f"<b>Year Released:</b> {year}\n"
