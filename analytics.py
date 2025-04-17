@@ -87,7 +87,9 @@ def track_command(user_id: int, command_name: str, username: str = None, languag
 	"""
 	Фиксирует команду (/start, /help и т.п.) с привязкой к пользователю
 	"""
-	props = {}
+	props = {
+		"tg_user_id": str(user_id)  # ⬅️ обязательно!
+	}
 	if username:
 		props["username"] = username
 	if language_code:
@@ -103,7 +105,9 @@ def track_feature(user_id: int, feature_name: str, username: str = None, languag
 	"""
 	Отправка события использования функции ("text_query" и т.п.)
 	"""
-	props = {}
+	props = {
+		"tg_user_id": str(user_id)  # ⬅️ обязательно!
+	}	
 	if username:
 		props["username"] = username
 	if language_code:
@@ -121,7 +125,9 @@ def track_callback(user_id: int, callback_key: str, username: str = None, langua
 	Фиксирует нажатие на inline-кнопку
 	Пример: callback = "pricing:42176-1"
 	"""
-	props = {}
+	props = {
+		"tg_user_id": str(user_id)  # ⬅️ обязательно!
+	}
 	if username:
 		props["username"] = username
 	if language_code:
