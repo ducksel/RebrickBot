@@ -99,18 +99,22 @@ def track_command(user_id: int, command_name: str, username: str = None, languag
 		user_props=props
 	))
 
-
-def track_feature(user_id: int, feature_name: str):
+def track_feature(user_id: int, feature_name: str, username: str = None, language_code: str = None):
 	"""
-	Фиксирует использование функциональности бота
-	Пример: "text_query", "scan_barcode", "upload_photo"
+	Отправка события использования функции ("text_query" и т.п.)
 	"""
+	props = {}
+	if username:
+		props["username"] = username
+	if language_code:
+		props["language"] = language_code
+	
 	asyncio.create_task(send_ga_event(
 		user_id,
 		event_name="feature_used",
-		params={"feature": feature_name}
+		params={"feature": feature_name},
+		user_props=props
 	))
-
 
 def track_callback(user_id: int, callback_key: str, username: str = None, language_code: str = None):
 	"""
