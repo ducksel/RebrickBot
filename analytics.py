@@ -5,23 +5,33 @@ import os
 import asyncio
 import uuid
 
-# Получаем переменные окружения
+# Получаем идентификаторы из переменных окружения
 GA_MEASUREMENT_ID = os.getenv("GA_MEASUREMENT_ID")
 GA_API_SECRET = os.getenv("GA_API_SECRET")
 
-
 def generate_client_id(user_id: int) -> str:
 	"""
-	Генерирует client_id на основе Telegram user_id.
-	Использует UUIDv5, чтобы избежать конфликта и сохранить уникальность.
+	Генерирует client_id, уникальный идентификатор для GA4, основанный на Telegram user_id.
+	GA требует client_id для идентификации сессии/пользователя.
+	UUIDv5 гарантирует одинаковый результат для одного и того же user_id.
 	"""
 	return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"tg-{user_id}"))
 
+async def send_ga_event(
+	user_id: int,
+	event_name: str,
+	params: dict = None,
+	user_props: dict = None
+):
+	"""
+	Формирует и отправляет событие в GA4 через Measurement Protocol.
 
-async def send_ga_event(user_id: int, event_name: str, params: dict = None, user_props: dict = None):
+	:param user_id: Telegram user.id (уникальный идентификатор пользователя)
+	:param event_name: Название события (например: command_start, feature_used)
+	:param params: Параметры события (feature, callback, error и т.д.)
+	:param user_props: Пользовательские свойства (username, language и т.п.)
 	"""
-	Отправляет событие в Google Analytics 4 через Measurement Protocol.
-	"""
+
 	if not (GA_MEASUREMENT_ID and GA_API_SECRET):
 		print("❌ GA config not found")
 		return
@@ -31,24 +41,21 @@ async def send_ga_event(user_id: int, event_name: str, params: dict = None, user
 		f"?measurement_id={GA_MEASUREMENT_ID}&api_secret={GA_API_SECRET}"
 	)
 
-	# Добавляем базовые параметры
+	# Базовые параметры события
 	event_params = {
-			"user_engagement": 1,
-			"debug_mode": 1  # ⬅️ Включить для отладки, выключить для использования
-		}
-	
+		"user_engagement": 1  # обязательный параметр GA4 для учета вовлеченности
+	}
+
 	if params:
 		event_params.update(params)
 
-	# Добавляем user_id в user_properties
-	final_user_props = {
-		"user_id": str(user_id)
-	}
+	# user_properties — это то, что "приклеивается" к пользователю
+	final_user_props = {}
 	if user_props:
 		final_user_props.update(user_props)
 
 	payload = {
-		"client_id": generate_client_id(user_id),
+		"client_id": generate_client_id(user_id),  # нужен для GA, не виден в отчетах
 		"user_properties": {
 			key: {"value": value}
 			for key, value in final_user_props.items()
@@ -61,6 +68,7 @@ async def send_ga_event(user_id: int, event_name: str, params: dict = None, user
 		]
 	}
 
+	# Асинхронная отправка
 	try:
 		async with aiohttp.ClientSession() as session:
 			async with session.post(url, json=payload) as response:
@@ -72,7 +80,7 @@ async def send_ga_event(user_id: int, event_name: str, params: dict = None, user
 
 def track_command(user_id: int, command_name: str, username: str = None, language_code: str = None):
 	"""
-	Отправка события при вводе команды (/start, /help и т.п.)
+	Фиксирует команду (/start, /help и т.п.) с привязкой к пользователю
 	"""
 	props = {}
 	if username:
@@ -89,7 +97,8 @@ def track_command(user_id: int, command_name: str, username: str = None, languag
 
 def track_feature(user_id: int, feature_name: str):
 	"""
-	Отправка события использования функции (поиск, фильтрация и т.п.)
+	Фиксирует использование функциональности бота
+	Пример: "text_query", "scan_barcode", "upload_photo"
 	"""
 	asyncio.create_task(send_ga_event(
 		user_id,
@@ -100,7 +109,8 @@ def track_feature(user_id: int, feature_name: str):
 
 def track_callback(user_id: int, callback_key: str, username: str = None, language_code: str = None):
 	"""
-	Отправка события при нажатии inline-кнопки
+	Фиксирует нажатие на inline-кнопку
+	Пример: callback = "pricing:42176-1"
 	"""
 	props = {}
 	if username:
@@ -118,7 +128,7 @@ def track_callback(user_id: int, callback_key: str, username: str = None, langua
 
 def track_error(user_id: int, error_code: str):
 	"""
-	Отправка события ошибки, если что-то пошло не так
+	Фиксирует ошибку, например: timeouts, API failures, parsing issues
 	"""
 	asyncio.create_task(send_ga_event(
 		user_id,

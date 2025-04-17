@@ -11,7 +11,7 @@ from telegram.ext import (
 	filters
 )
 from BrickEconomyApi import get_pricing_info  # импортируем функцию из модуля BrickEconomy
-from analytics import track_command, track_feature, track_callback  # добавлено для логирования действий
+from analytics import track_command, track_feature, track_callback  # логирование действий с user_props
 
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
@@ -37,7 +37,7 @@ def build_inline_keyboard(set_id: str, set_url: str, lego_us_url: str) -> Inline
 			InlineKeyboardButton("Parts by Type", callback_data=f"parts_by_type:{set_id}")
 		],
 		[
-			InlineKeyboardButton("View Prices", callback_data=f"pricing:{set_id}")  # кнопка для запроса цен
+			InlineKeyboardButton("View Prices", callback_data=f"pricing:{set_id}")
 		],
 		[
 			InlineKeyboardButton("View on Rebrickable", url=set_url)
@@ -142,20 +142,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	print(f"Received text: {text}")
 
 	user = update.effective_user
-	track_feature(user.id, "text_query")
-	
-	print("📥 Received text message:")
-	print(f"   Text: {text}")
-	print("   └─ User info:")
-	print(f"      ID: {user.id}")
-	print(f"      Username: {user.username}")
-	print(f"      First name: {user.first_name}")
-	print(f"      Last name: {user.last_name}")
-	print(f"      Language code: {user.language_code}")
-	print(f"      Is bot: {user.is_bot}")
-	print(f"      Is premium: {getattr(user, 'is_premium', 'N/A')}")
-	print(f"      Added to attachment menu: {getattr(user, 'added_to_attachment_menu', 'N/A')}")
-
+	track_feature(
+		user.id,
+		"text_query"
+	)
 
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
 	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
@@ -236,11 +226,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 	user = query.from_user
 	track_callback(
-			user.id,
-			query.data,
-			username=user.username,
-			language_code=user.language_code
-		)
+		user.id,
+		query.data,
+		username=user.username,
+		language_code=user.language_code
+	)
 
 	# Разбираем callback_data: action:set_id
 	try:
