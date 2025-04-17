@@ -144,9 +144,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = update.effective_user
 	track_feature(
 		user.id,
-		"text_query"
+		"text_query",
+		username=user.username,
+		language_code=user.language_code
 	)
-
+	
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
 	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
 	if match:
