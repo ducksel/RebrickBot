@@ -143,6 +143,19 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 	user = update.effective_user
 	track_feature(user.id, "text_query")
+	
+	print("📥 Received text message:")
+	print(f"   Text: {text}")
+	print("   └─ User info:")
+	print(f"      ID: {user.id}")
+	print(f"      Username: {user.username}")
+	print(f"      First name: {user.first_name}")
+	print(f"      Last name: {user.last_name}")
+	print(f"      Language code: {user.language_code}")
+	print(f"      Is bot: {user.is_bot}")
+	print(f"      Is premium: {getattr(user, 'is_premium', 'N/A')}")
+	print(f"      Added to attachment menu: {getattr(user, 'added_to_attachment_menu', 'N/A')}")
+
 
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
 	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
