@@ -18,44 +18,44 @@ def generate_client_id(user_id: int) -> str:
 	return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"tg-{user_id}"))
 
 async def send_ga_event(
-	user_id: int,
-	event_name: str,
-	params: dict = None,
-	user_props: dict = None
-):
+		user_id: int,
+		event_name: str,
+		params: dict = None,
+		user_props: dict = None
+	):
 	"""
 	Формирует и отправляет событие в GA4 через Measurement Protocol.
-
+	
 	:param user_id: Telegram user.id (уникальный идентификатор пользователя)
 	:param event_name: Название события (например: command_start, feature_used)
 	:param params: Параметры события (feature, callback, error и т.д.)
 	:param user_props: Пользовательские свойства (username, language и т.п.)
 	"""
-
+	
 	if not (GA_MEASUREMENT_ID and GA_API_SECRET):
 		print("❌ GA config not found")
 		return
-
+	
 	url = (
 		f"https://www.google-analytics.com/mp/collect"
 		f"?measurement_id={GA_MEASUREMENT_ID}&api_secret={GA_API_SECRET}"
 	)
-
-	# Базовые параметры события
+	
+	# Добавляем базовые параметры события
 	event_params = {
 		"user_engagement": 1  # обязательный параметр GA4 для учета вовлеченности
 	}
-
+	
 	if params:
 		event_params.update(params)
-
+	
 	# user_properties — это то, что "приклеивается" к пользователю
 	final_user_props = {}
 	if user_props:
 		final_user_props.update(user_props)
-
+	
 	payload = {
-		"client_id": generate_client_id(user_id),  # нужен для GA, не виден в отчетах
+		"client_id": generate_client_id(user_id), # нужен для GA, не виден в отчетах
 		"user_properties": {
 			key: {"value": value}
 			for key, value in final_user_props.items()
@@ -67,8 +67,13 @@ async def send_ga_event(
 			}
 		]
 	}
-
-	# Асинхронная отправка
+	
+	# 👉 Логируем финальный payload для отладки
+	import json
+	print("📤 Sending GA event:")
+	print(json.dumps(payload, indent=2, ensure_ascii=False))
+	
+	# Асинхронная отправка события
 	try:
 		async with aiohttp.ClientSession() as session:
 			async with session.post(url, json=payload) as response:
