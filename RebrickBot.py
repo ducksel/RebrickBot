@@ -1,3 +1,5 @@
+# RebrickBot.py
+
 import os
 import re
 import requests
@@ -12,6 +14,7 @@ from telegram.ext import (
 )
 from BrickEconomyApi import get_pricing_info  # импортируем функцию из модуля BrickEconomy
 from analytics import track_command, track_feature, track_callback  # логирование действий с user_props
+from pg_db import init_db, add_message, get_pending_messages, mark_message_sent # работа с базой данных
 
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
@@ -306,7 +309,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		reply_markup=keyboard
 	)
 
-# Регистрация бота и хендлеров
+# Регистрация бота, базы данных и хендлеров
+if __name__ == "__main__":
+init_db()  # ✅ создаст таблицу messages при первом запуске (если ещё не существует)
+
 app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
