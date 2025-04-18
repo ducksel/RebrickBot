@@ -311,7 +311,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Регистрация бота, базы данных и хендлеров
 if __name__ == "__main__":
-	init_db()  # ✅ создаст таблицу messages при первом запуске (если ещё не существует)
+	init_db()
 	app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
 	app.add_handler(CommandHandler("start", start))
 	app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
