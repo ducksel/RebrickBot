@@ -23,6 +23,7 @@ def init_db():
 	"""
 	with psycopg2.connect(DATABASE_URL) as conn:
 		with conn.cursor() as cur:
+			# Таблица сообщений
 			cur.execute("""
 				CREATE TABLE IF NOT EXISTS messages (
 					id SERIAL PRIMARY KEY,
@@ -30,6 +31,20 @@ def init_db():
 					content TEXT NOT NULL,
 					send_at TIMESTAMP NOT NULL,
 					sent BOOLEAN DEFAULT FALSE
+				)
+			""")
+			# Таблица пользователей
+			cur.execute("""
+				CREATE TABLE IF NOT EXISTS users (
+					user_id BIGINT PRIMARY KEY,
+					username TEXT,
+					first_name TEXT,
+					last_name TEXT,
+					language_code TEXT,
+					is_bot BOOLEAN,
+					is_premium BOOLEAN,
+					started_at TIMESTAMP NOT NULL,
+					blocked BOOLEAN DEFAULT FALSE
 				)
 			""")
 		conn.commit()
@@ -86,14 +101,57 @@ def mark_message_sent(message_id: int):
 			)
 		conn.commit()
 
+# ============================
+# 📚 ФУНКЦИЯ: ПОЛУЧЕНИЕ ПОСЛЕДНИХ СООБЩЕНИЙ
+# ============================
 def get_recent_messages(limit=10):
-		"""
-		Возвращает последние N новостных сообщений, отсортированных по дате отправки
-		"""
-		with psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor) as conn:
-			with conn.cursor() as cur:
-				cur.execute(
-					"SELECT * FROM messages ORDER BY send_at DESC LIMIT %s",
-					(limit,)
+	"""
+	Возвращает последние N новостных сообщений, отсортированных по дате отправки
+	"""
+	with psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor) as conn:
+		with conn.cursor() as cur:
+			cur.execute(
+				"SELECT * FROM messages ORDER BY send_at DESC LIMIT %s",
+				(limit,)
+			)
+			return cur.fetchall()
+
+# ============================
+# 👤 ФУНКЦИЯ: ДОБАВЛЕНИЕ И ОБНОВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ
+# ============================
+def add_or_update_user(user):
+	"""
+	Добавляет нового пользователя или обновляет его данные.
+	Сохраняются:
+		- user_id, username, имя, язык
+		- статус premium
+		- дата первого запуска
+	"""
+	is_premium = getattr(user, "is_premium", None)
+
+	with psycopg2.connect(DATABASE_URL) as conn:
+		with conn.cursor() as cur:
+			cur.execute("""
+				INSERT INTO users (
+					user_id, username, first_name, last_name,
+					language_code, is_bot, is_premium, started_at
 				)
-				return cur.fetchall()
+				VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+				ON CONFLICT (user_id) DO UPDATE
+				SET username = EXCLUDED.username,
+					first_name = EXCLUDED.first_name,
+					last_name = EXCLUDED.last_name,
+					language_code = EXCLUDED.language_code,
+					is_bot = EXCLUDED.is_bot,
+					is_premium = EXCLUDED.is_premium
+			""", (
+				user.id,
+				user.username,
+				user.first_name,
+				user.last_name,
+				user.language_code,
+				user.is_bot,
+				is_premium,
+				datetime.utcnow()
+			))
+		conn.commit()
