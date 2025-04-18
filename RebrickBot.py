@@ -22,6 +22,12 @@ from newsletter import newsletter_loop
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
 
+# ---------------------------
+# 🚀 Функция запуска фоновой рассылки после старта приложения
+# ---------------------------
+async def post_init(application):
+	application.create_task(newsletter_loop(application.bot))
+
 def get_lego_us_url(set_num):
 	"""
 	Формирует URL для официального сайта LEGO US по формуле.
@@ -339,10 +345,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Регистрация бота, базы данных и хендлеров
 if __name__ == "__main__":
 	init_db()
-	app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
+	app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).post_init(post_init).build()
 	app.add_handler(CommandHandler("start", start))
 	app.add_handler(CommandHandler("newsletters", newsletters))
 	app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 	app.add_handler(CallbackQueryHandler(handle_callback))
-	asyncio.create_task(newsletter_loop(app.bot)) # ⬅️ запуск фоновой рассылки
 	app.run_polling()
