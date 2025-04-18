@@ -3,6 +3,7 @@
 import os
 import re
 import requests
+from datetime import datetime
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
 	ApplicationBuilder,
@@ -139,7 +140,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- Хендлер для команды /newsletters ---
 async def newsletters(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
-	Команда /newsletters — показывает последние 10 сообщений из базы рассылок.
+	Показывает последние 10 рассылок в красиво отформатированном виде
 	"""
 	messages = get_recent_messages(limit=10)
 	
@@ -147,13 +148,16 @@ async def newsletters(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		await update.message.reply_text("🕳 No newsletter messages found.")
 		return
 	
-	lines = ["<b>📰 Latest Newsletter Messages:</b>"]
+	parts = []
 	for msg in messages:
-		dt = msg['send_at'].strftime("%Y-%m-%d %H:%M")
+		dt = msg['send_at'].strftime("%d %b %Y, %H:%M")
 		title = msg['title'] or "(no title)"
-		lines.append(f"• <b>{title}</b> — {dt}")
+		content = msg['content'].strip()
 	
-	await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+		parts.append(f"📅 {dt} — <b>{title}</b>\n{content}\n")
+	
+	text = "\n".join(parts)
+	await update.message.reply_text(text, parse_mode="HTML")
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
