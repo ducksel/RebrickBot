@@ -43,6 +43,7 @@ def init_db():
 					language_code TEXT,
 					is_bot BOOLEAN,
 					is_premium BOOLEAN,
+					subscribed BOOLEAN DEFAULT TRUE,
 					started_at TIMESTAMP NOT NULL,
 					blocked BOOLEAN DEFAULT FALSE
 				)
@@ -126,6 +127,7 @@ def add_or_update_user(user):
 		- user_id, username, имя, язык
 		- статус premium
 		- дата первого запуска
+		- подписка (при старте всегда TRUE)
 	"""
 	is_premium = getattr(user, "is_premium", None)
 
@@ -134,16 +136,17 @@ def add_or_update_user(user):
 			cur.execute("""
 				INSERT INTO users (
 					user_id, username, first_name, last_name,
-					language_code, is_bot, is_premium, started_at
+					language_code, is_bot, is_premium, subscribed, started_at
 				)
-				VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+				VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, %s)
 				ON CONFLICT (user_id) DO UPDATE
 				SET username = EXCLUDED.username,
 					first_name = EXCLUDED.first_name,
 					last_name = EXCLUDED.last_name,
 					language_code = EXCLUDED.language_code,
 					is_bot = EXCLUDED.is_bot,
-					is_premium = EXCLUDED.is_premium
+					is_premium = EXCLUDED.is_premium,
+					subscribed = TRUE
 			""", (
 				user.id,
 				user.username,
