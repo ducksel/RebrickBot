@@ -13,13 +13,13 @@ DATABASE_URL = os.environ["DATABASE_URL"]
 # ============================
 def init_db():
 	"""
-	Создаёт таблицу messages, если она ещё не существует.
+	Создаёт таблицу messages и users, если они ещё не существуют.
 	Таблица содержит:
-		- id: уникальный идентификатор
-		- title: заголовок сообщения (необязательный)
-		- content: HTML-сообщение для отправки
-		- send_at: дата и время планируемой отправки (UTC)
-		- sent: флаг, было ли сообщение уже отправлено
+	- id: уникальный идентификатор
+	- title: заголовок сообщения (необязательный)
+	- content: HTML-сообщение для отправки
+	- send_at: дата и время планируемой отправки (UTC)
+	- sent: флаг, было ли сообщение уже отправлено
 	"""
 	with psycopg2.connect(DATABASE_URL) as conn:
 		with conn.cursor() as cur:
@@ -129,7 +129,7 @@ def add_or_update_user(user):
 		- дата первого запуска
 		- подписка (при старте всегда TRUE)
 	"""
-	is_premium = getattr(user, "is_premium", None)
+	is_premium = getattr(user, "is_premium", None)		
 
 	with psycopg2.connect(DATABASE_URL) as conn:
 		with conn.cursor() as cur:
@@ -158,3 +158,14 @@ def add_or_update_user(user):
 				datetime.utcnow()
 			))
 		conn.commit()
+
+# ============================
+# 📤 ПОЛУЧЕНИЕ ПОДПИСАННЫХ ПОЛЬЗОВАТЕЛЕЙ
+# ============================
+def get_subscribed_users():
+	with psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor) as conn:
+		with conn.cursor() as cur:
+			cur.execute(
+				"SELECT user_id, username FROM users WHERE subscribed = TRUE AND blocked = FALSE"
+			)
+			return cur.fetchall()

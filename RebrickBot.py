@@ -3,6 +3,7 @@
 import os
 import re
 import requests
+import asyncio
 from datetime import datetime
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
@@ -16,6 +17,7 @@ from telegram.ext import (
 from BrickEconomyApi import get_pricing_info  # импортируем функцию из модуля BrickEconomy
 from analytics import track_command, track_feature, track_callback  # логирование действий с user_props
 from pg_db import init_db, add_message, get_pending_messages, mark_message_sent, get_recent_messages, add_or_update_user # работа с базой данных
+from newsletter import newsletter_loop
 
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
@@ -342,4 +344,5 @@ if __name__ == "__main__":
 	app.add_handler(CommandHandler("newsletters", newsletters))
 	app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 	app.add_handler(CallbackQueryHandler(handle_callback))
+	asyncio.create_task(newsletter_loop(app.bot)) # ⬅️ запуск фоновой рассылки
 	app.run_polling()
