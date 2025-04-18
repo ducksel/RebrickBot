@@ -85,3 +85,15 @@ def mark_message_sent(message_id: int):
 				(message_id,)
 			)
 		conn.commit()
+
+def get_recent_messages(limit=10):
+		"""
+		Возвращает последние N новостных сообщений, отсортированных по дате отправки
+		"""
+		with psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor) as conn:
+			with conn.cursor() as cur:
+				cur.execute(
+					"SELECT * FROM messages ORDER BY send_at DESC LIMIT %s",
+					(limit,)
+				)
+				return cur.fetchall()

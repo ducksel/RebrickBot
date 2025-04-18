@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 from BrickEconomyApi import get_pricing_info  # импортируем функцию из модуля BrickEconomy
 from analytics import track_command, track_feature, track_callback  # логирование действий с user_props
-from pg_db import init_db, add_message, get_pending_messages, mark_message_sent # работа с базой данных
+from pg_db import init_db, add_message, get_pending_messages, mark_message_sent, get_recent_messages # работа с базой данных
 
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
@@ -135,6 +135,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		"Hello! Please send me a LEGO set code (4 or 5 digits).",
 		parse_mode="HTML"
 	)
+
+# --- Хендлер для команды /newsletters ---
+async def newsletters(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	"""
+	Команда /newsletters — показывает последние 10 сообщений из базы рассылок.
+	"""
+	messages = get_recent_messages(limit=10)
+	
+	if not messages:
+		await update.message.reply_text("🕳 No newsletter messages found.")
+		return
+	
+	lines = ["<b>📰 Latest Newsletter Messages:</b>"]
+	for msg in messages:
+		dt = msg['send_at'].strftime("%Y-%m-%d %H:%M")
+		title = msg['title'] or "(no title)"
+		lines.append(f"• <b>{title}</b> — {dt}")
+	
+	await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
@@ -314,6 +334,7 @@ if __name__ == "__main__":
 	init_db()
 	app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).build()
 	app.add_handler(CommandHandler("start", start))
+	app.add_handler(CommandHandler("newsletters", newsletters))
 	app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 	app.add_handler(CallbackQueryHandler(handle_callback))
 	app.run_polling()
