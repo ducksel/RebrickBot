@@ -1,4 +1,4 @@
-# RebrickBot.py
+# main.py
 
 import os
 import re
@@ -14,13 +14,11 @@ from telegram.ext import (
 	ContextTypes,
 	filters
 )
-from api_brickeconomy import get_pricing_info  # импортируем функцию из модуля BrickEconomy
+from api_brickeconomy import get_pricing_info  # работа с api сайта BrickEconomy
+from api_rebrickable import get_set_details, get_all_parts, get_categories  # работа с api сайта rebrickable
 from analytics import track_command, track_feature, track_callback  # логирование действий с user_props
 from db import init_db, add_message, get_pending_messages, mark_message_sent, get_recent_messages, add_or_update_user # работа с базой данных
 from newsletter import newsletter_loop, format_newsletter_message # работа с рассылкой новостей
-
-# ВСЕ ЕЩЕ НУЖЕН ПРОВЕРИТЬ ???? Получаем API-ключ Rebrickable из переменной окружения
-REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
 
 # ---------------------------
 # 🚀 Функция запуска фоновой рассылки после старта приложения
@@ -59,48 +57,10 @@ def build_inline_keyboard(set_id: str, set_url: str, lego_us_url: str) -> Inline
 		]
 	])
 
-def get_all_parts(set_id):
-	"""
-	Получает все детали набора, обходя все страницы (pagination)
-	"""
-	parts = []
-	url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/parts/"
-	headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
-	while url:
-		response = requests.get(url, headers=headers)
-		if response.status_code != 200:
-			break
-		data = response.json()
-		parts.extend(data.get("results", []))
-		url = data.get("next")
-	return parts
-
-def get_categories():
-	"""
-	Получает все категории деталей из Rebrickable и возвращает словарь,
-	где ключ – идентификатор категории, а значение – название категории.
-	Обходит все страницы результата.
-	"""
-	categories = {}
-	url = "https://rebrickable.com/api/v3/lego/part_categories/"
-	headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
-	while url:
-		response = requests.get(url, headers=headers)
-		if response.status_code != 200:
-			break
-		data = response.json()
-		for cat in data.get("results", []):
-			cat_id = cat.get("id")
-			cat_name = cat.get("name")
-			if cat_id is not None and cat_name is not None:
-				categories[cat_id] = cat_name
-		url = data.get("next")
-	return categories
-
 def group_parts_by_dynamic_category(parts):
 	"""
 	Группирует детали набора по категориям, полученным динамически через get_categories.
-	Возвращает словарь: ключ – название категории, значение – суммарное количество деталей.
+	Возвращает словарь: {название категории: количество деталей}
 	"""
 	categories = get_categories()
 	category_summary = {}
@@ -113,22 +73,9 @@ def group_parts_by_dynamic_category(parts):
 			category_summary[cat_name] = category_summary.get(cat_name, 0) + quantity
 	return category_summary
 
-def get_set_details(set_id):
-	"""
-	Получает базовую информацию о наборе (номер, имя, год и количество деталей)
-	"""
-	url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
-	headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
-	response = requests.get(url, headers=headers)
-	if response.status_code == 200:
-		data = response.json()
-		set_num = data.get("set_num", "n/a")
-		name = data.get("name", "n/a")
-		year = data.get("year", "n/a")
-		num_parts = data.get("num_parts", "n/a")
-		return set_num, name, year, num_parts
-	return "n/a", "n/a", "n/a", "n/a"
-
+# ========================
+# Команда /start
+# ========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	Команда /start — показывает приветственное сообщение.
@@ -146,24 +93,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		parse_mode="HTML"
 	)
 
-# --- Хендлер для команды /newsletters ---
+# ========================
+# Команда /newsletters - Хендлер для команды
+# ========================
 async def newsletters(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	Показывает последние 10 рассылок в красиво отформатированном виде
 	"""
 	messages = get_recent_messages(limit=10)
-	
 	if not messages:
 		await update.message.reply_text("🕳 No newsletter messages found.")
 		return
-	
+
 	formatted = [format_newsletter_message(msg) for msg in messages]
 	text = "\n\n".join(formatted)
-	
+
 	await update.message.reply_text(text, parse_mode="HTML")
 
-
-
+# ========================
+# Обработка ввода LEGO-кода
+# ========================
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	Обрабатывает текстовое сообщение, проверяет — это ли код LEGO-набора,
@@ -179,76 +128,74 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		username=user.username,
 		language_code=user.language_code
 	)
-	
+
 	# Проверка, что введено 4 или 5 цифр (код LEGO-набора)
 	match = re.fullmatch(r"(\d{4,5})(-\d)?", text)
-	if match:
-		base = match.group(1)
-		suffix = match.group(2) or "-1"
-		set_id = f"{base}{suffix}"
+	if not match:
+		await update.message.reply_text("❌ Invalid LEGO code. Please enter exactly 4 or 5 digits.")
+		return
 
-		# Запрос к API Rebrickable
-		url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
-		headers = {"Authorization": f"key {REBRICKABLE_API_KEY}"}
-		print(f"Making request for set {set_id}")
-		response = requests.get(url, headers=headers)
+	base = match.group(1)
+	suffix = match.group(2) or "-1"
+	set_id = f"{base}{suffix}"
 
-		if response.status_code == 200:
-			data = response.json()
-			set_num = data.get("set_num", "n/a")
-			name = data.get("name", "n/a")
-			year = data.get("year", "n/a")
-			num_parts = data.get("num_parts", "n/a")
-			set_img_url = data.get("set_img_url")
-			set_url = data.get("set_url", "n/a")
+	url = f"https://rebrickable.com/api/v3/lego/sets/{set_id}/"
+	headers = {"Authorization": f"key {os.environ['REBRICKABLE_API_KEY']}"}
+	print(f"Making request for set {set_id}")
+	response = requests.get(url, headers=headers)
 
-			# Формируем основное текстовое сообщение
-			message = (
-				f"<b>Set Number:</b> {set_num}\n"
-				f"<b>Name:</b> {name}\n"
-				f"<b>Year Released:</b> {year}\n"
-				f"<b>Pieces:</b> {num_parts}"
-			)
-
-			# Обработка изображения с проверкой размера
-			if set_img_url:
-				print(f"Photo processing")
-				try:
-					img_head = requests.head(set_img_url, allow_redirects=True, timeout=5)
-					size_str = img_head.headers.get("Content-Length")
-					if size_str is not None:
-						size = int(size_str)
-						print(f"Image size: {size} bytes")
-						if size <= 5_000_000:
-							await update.message.reply_photo(photo=set_img_url)
-							set_img_url = None  # уже отправили
-					if set_img_url:
-						img_response = requests.get(set_img_url, timeout=10)
-						if img_response.status_code == 200:
-							import io
-							from telegram import InputFile
-							image_data = io.BytesIO(img_response.content)
-							await update.message.reply_photo(photo=InputFile(image_data, filename="lego.jpg"))
-						else:
-							print(f"❌ Image download failed: {img_response.status_code}")
-				except Exception as e:
-					print(f"❌ Failed to send photo: {e}")
-
-			lego_us_url = get_lego_us_url(set_num)
-			keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)
-
-			await update.message.reply_text(
-				text=message,
-				parse_mode="HTML",
-				reply_markup=keyboard
-			)
-		elif response.status_code == 404:
+	if response.status_code != 200:
+		if response.status_code == 404:
 			await update.message.reply_text(f"❌ LEGO set {set_id} not found.")
 		else:
 			await update.message.reply_text(f"⚠️ API Error: {response.status_code}")
-	else:
-		await update.message.reply_text("❌ Invalid LEGO code. Please enter exactly 4 or 5 digits.")
+		return
 
+	data = response.json()
+	set_num = data.get("set_num", "n/a")
+	name = data.get("name", "n/a")
+	year = data.get("year", "n/a")
+	num_parts = data.get("num_parts", "n/a")
+	set_img_url = data.get("set_img_url")
+	set_url = data.get("set_url", "n/a")
+
+	# Формируем основное текстовое сообщение
+	message = (
+		f"<b>Set Number:</b> {set_num}\n"
+		f"<b>Name:</b> {name}\n"
+		f"<b>Year Released:</b> {year}\n"
+		f"<b>Pieces:</b> {num_parts}"
+	)
+
+	# Обработка изображения с проверкой размера
+	if set_img_url:
+		try:
+			img_head = requests.head(set_img_url, allow_redirects=True, timeout=5)
+			size_str = img_head.headers.get("Content-Length")
+			if size_str and int(size_str) <= 5_000_000:
+				await update.message.reply_photo(photo=set_img_url)
+			else:
+				img_response = requests.get(set_img_url, timeout=10)
+				if img_response.status_code == 200:
+					import io
+					from telegram import InputFile
+					image_data = io.BytesIO(img_response.content)
+					await update.message.reply_photo(photo=InputFile(image_data, filename="lego.jpg"))
+		except Exception as e:
+			print(f"❌ Failed to send photo: {e}")
+
+	lego_us_url = get_lego_us_url(set_num)
+	keyboard = build_inline_keyboard(set_id, set_url, lego_us_url)
+
+	await update.message.reply_text(
+		text=message,
+		parse_mode="HTML",
+		reply_markup=keyboard
+	)
+
+# ========================
+# Обработка inline-кнопок
+# ========================
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	"""
 	Обрабатывает нажатие на inline-кнопки: по цвету, типу, ценам и т.д.
@@ -271,7 +218,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	except ValueError:
 		await query.message.reply_text("Error: Set information is missing.")
 		return
-
+		
 	# Получаем основную информацию о наборе
 	set_num, set_name, year, num_parts = get_set_details(set_id)
 	main_message = (
@@ -284,7 +231,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	additional_info = ""
 
 	if action == "parts_by_color":
-		# Детали по цвету
 		parts = get_all_parts(set_id)
 		if not parts:
 			await query.message.edit_text(
@@ -305,7 +251,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		additional_info = "\n".join(lines)
 
 	elif action == "parts_by_type":
-		# Детали по типу (категориям)
 		parts = get_all_parts(set_id)
 		if not parts:
 			await query.message.edit_text(
@@ -321,8 +266,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		additional_info = "\n".join(lines)
 
 	elif action == "pricing":
-		# Информация о ценах из BrickEconomy API
-		# Передаём set_id (например, '42176-1') — функция сама обрежет хвост
 		additional_info = get_pricing_info(set_id)
 	else:
 		additional_info = "\n⚠️ Unknown action."
@@ -337,7 +280,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		reply_markup=keyboard
 	)
 
-# Регистрация бота, базы данных и хендлеров
+# ========================
+# 🚀 Запуск приложения - Регистрация бота, базы данных и хендлеров
+# ========================
 if __name__ == "__main__":
 	init_db()
 	app = ApplicationBuilder().token(os.environ["BOT_TOKEN"]).post_init(post_init).build()
