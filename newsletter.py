@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from pg_db import get_pending_messages, mark_message_sent, get_subscribed_users
+from db import get_pending_messages, mark_message_sent, get_subscribed_users
 from analytics import track_feature
 from telegram import Bot
 
