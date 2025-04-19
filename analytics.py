@@ -101,22 +101,26 @@ def track_command(user_id: int, command_name: str, username: str = None, languag
 		user_props=props
 	))
 
-def track_feature(user_id: int, feature_name: str, username: str = None, language_code: str = None):
+def track_feature(user_id: int, feature_name: str, username: str = None, language_code: str = None, params: dict = None):
 	"""
 	Отправка события использования функции ("text_query" и т.п.)
 	"""
 	props = {
 		"tg_user_id": str(user_id)  # ⬅️ обязательно!
-	}	
+	}
 	if username:
 		props["username"] = username
 	if language_code:
 		props["language"] = language_code
 	
+	event_params = {"feature": feature_name}
+	if params:
+		event_params.update(params)
+	
 	asyncio.create_task(send_ga_event(
 		user_id,
 		event_name="feature_used",
-		params={"feature": feature_name},
+		params=event_params,
 		user_props=props
 	))
 
