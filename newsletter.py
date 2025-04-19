@@ -43,7 +43,7 @@ async def newsletter_loop(bot: Bot):
 							username=user.get("username"),
 							params={
 								"message_id": message["id"],
-								"message_title": title
+								"message_title": title,
 								"sent_at": str(send_at) if send_at else None
 							}
 						)
