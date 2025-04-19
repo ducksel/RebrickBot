@@ -69,9 +69,9 @@ async def send_ga_event(
 	}
 	
 	# 👉 Логируем финальный payload для отладки
-	import json
-	print("📤 Sending GA event:")
-	print(json.dumps(payload, indent=2, ensure_ascii=False))
+#	import json
+#	print("📤 Sending GA event:")
+#	print(json.dumps(payload, indent=2, ensure_ascii=False))
 	
 	# Асинхронная отправка события
 	try:

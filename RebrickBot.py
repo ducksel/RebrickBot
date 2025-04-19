@@ -17,7 +17,7 @@ from telegram.ext import (
 from BrickEconomyApi import get_pricing_info  # импортируем функцию из модуля BrickEconomy
 from analytics import track_command, track_feature, track_callback  # логирование действий с user_props
 from pg_db import init_db, add_message, get_pending_messages, mark_message_sent, get_recent_messages, add_or_update_user # работа с базой данных
-from newsletter import newsletter_loop
+from newsletter import newsletter_loop, format_newsletter_message # работа с рассылкой новостей
 
 # Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
@@ -157,16 +157,11 @@ async def newsletters(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		await update.message.reply_text("🕳 No newsletter messages found.")
 		return
 	
-	parts = []
-	for msg in messages:
-		dt = msg['send_at'].strftime("%d %b %Y, %H:%M")
-		title = msg['title'] or "(no title)"
-		content = msg['content'].strip()
+	formatted = [format_newsletter_message(msg) for msg in messages]
+	text = "\n\n".join(formatted)
 	
-		parts.append(f"📅 {dt} — <b>{title}</b>\n{content}\n")
-	
-	text = "\n".join(parts)
 	await update.message.reply_text(text, parse_mode="HTML")
+
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
