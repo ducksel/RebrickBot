@@ -30,15 +30,18 @@ async def newsletter_loop(bot: Bot):
 							text=message["content"],
 							parse_mode="HTML"
 						)
-						# 🔗 Логируем в GA факт доставки
+						# 🔗 Логируем в GA факт доставки			
 						track_feature(
 							user["user_id"],
 							feature_name="newsletter_delivered",
 							username=user.get("username"),
-							message_id=message["id"],
-							message_title=message.get("title"),
-							sent_at=str(message.get("send_at")) if message.get("send_at") else None
+							params={
+								"message_id": message["id"],
+								"message_title": message.get("title"),
+								"sent_at": str(message.get("send_at")) if message.get("send_at") else None
+							}
 						)
+						
 						delivered += 1
 					except Exception as e:
 						print(f"⚠️ Failed to send message to {user['user_id']}: {e}")
