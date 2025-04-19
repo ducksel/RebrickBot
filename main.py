@@ -19,7 +19,7 @@ from analytics import track_command, track_feature, track_callback  # логир
 from db import init_db, add_message, get_pending_messages, mark_message_sent, get_recent_messages, add_or_update_user # работа с базой данных
 from newsletter import newsletter_loop, format_newsletter_message # работа с рассылкой новостей
 
-# Получаем API-ключ Rebrickable из переменной окружения
+# ВСЕ ЕЩЕ НУЖЕН ПРОВЕРИТЬ ???? Получаем API-ключ Rebrickable из переменной окружения
 REBRICKABLE_API_KEY = os.environ["REBRICKABLE_API_KEY"]
 
 # ---------------------------
@@ -142,7 +142,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		language_code=user.language_code
 	)
 	await update.message.reply_text(
-		"Hello! Please send me a LEGO set code (4 or 5 digits).",
+		"Hello! Please send me a Lego set code (4 or 5 digits).",
 		parse_mode="HTML"
 	)
 
