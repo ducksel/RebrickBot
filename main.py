@@ -1,6 +1,7 @@
 # main.py
 
 import os
+import asyncio
 from telegram.ext import (
 	ApplicationBuilder,
 	CommandHandler,
@@ -18,20 +19,25 @@ from handlers import (
 )  # ✅ импорт всех хендлеров из handlers.py
 
 # ---------------------------
-# 🚀 Функция post_init — запускает фоновую задачу рассылки после старта бота
+# 🚀 Функция запуска фоновой рассылки после старта приложения
 # ---------------------------
 async def post_init(application):
-	application.create_task(newsletter_loop(application.bot))
+	"""
+	Запускает фоновую задачу рассылки новостей после инициализации Telegram-приложения.
+	Используется безопасный способ запуска задачи, привязанный к event loop.
+	"""
+	loop = asyncio.get_running_loop()
+	loop.create_task(newsletter_loop(application.bot))
 
-# ---------------------------
-# 🧠 Точка входа — создание и запуск приложения
-# ---------------------------
+
+# ========================
+# 🚀 Точка входа — регистрация бота, базы данных и хендлеров
+# ========================
 if __name__ == "__main__":
 	init_db()  # 🧱 создаёт таблицы в базе данных при первом запуске (если их ещё нет)
-
-	app = ApplicationBuilder() \
-		.token(os.environ["BOT_TOKEN"]) \
-		.post_init(post_init) \
+	app = ApplicationBuilder()\
+		.token(os.environ["BOT_TOKEN"])\
+		.post_init(post_init)\
 		.build()
 
 	# 📌 Регистрируем команды и обработчики
@@ -40,5 +46,5 @@ if __name__ == "__main__":
 	app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 	app.add_handler(CallbackQueryHandler(handle_callback))
 
-	# 🚦 Запускаем polling
+    # ✅ импорт всех хендлеров из handlers.py
 	app.run_polling()
